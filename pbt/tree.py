@@ -27,9 +27,23 @@ from .nodes import EmptyNode, InternalNode, StemNode, Node
 def _bit_at(data: bytes, position: int) -> int:
     """Return the bit at `position` (big-endian, MSB-first) of `data`."""
     byte_index, bit_index = divmod(position, 8)
-    if byte_index >= len(data):
-        return 0
-    return (data[byte_index] >> (7 - bit_index)) & 1
+    if byte_index < len(data):
+        return (data[byte_index] >> (7 - bit_index)) & 1
+    return 0
+
+
+def _path_bit_at(data: bytes, position: int) -> int:
+    """Bit accessor used for tree paths.
+
+    Uses an implicit terminator bit after the payload bits so finite prefixes
+    are uniquely decodable and split recursion always terminates.
+    """
+    byte_index, bit_index = divmod(position, 8)
+    if byte_index < len(data):
+        return (data[byte_index] >> (7 - bit_index)) & 1
+    if byte_index == len(data) and bit_index == 0:
+        return 1
+    return 0
 
 
 def _common_prefix_len(a: bytes, b: bytes) -> int:
@@ -96,7 +110,7 @@ def _insert(node: Node, stem_prefix: bytes, subindex: int,
 
     # InternalNode: descend by the bit at `depth`.
     assert isinstance(node, InternalNode)
-    bit = _bit_at(stem_prefix, depth)
+    bit = _path_bit_at(stem_prefix, depth)
     if bit == 0:
         node.left = _insert(node.left, stem_prefix, subindex, value, depth + 1)
     else:
@@ -111,8 +125,8 @@ def _split_stems(existing: StemNode, new_prefix: bytes, subindex: int,
     Introduce the minimum number of InternalNodes to separate two stems
     whose prefixes first diverge at or after bit `depth`.
     """
-    bit_existing = _bit_at(existing.stem_prefix, depth)
-    bit_new = _bit_at(new_prefix, depth)
+    bit_existing = _path_bit_at(existing.stem_prefix, depth)
+    bit_new = _path_bit_at(new_prefix, depth)
 
     if bit_existing == bit_new:
         # Bits still agree; descend one more level.
@@ -161,7 +175,7 @@ def _get(node: Node, stem_prefix: bytes, subindex: int, depth: int) -> bytes:
         return EMPTY_VALUE
 
     assert isinstance(node, InternalNode)
-    bit = _bit_at(stem_prefix, depth)
+    bit = _path_bit_at(stem_prefix, depth)
     if bit == 0:
         return _get(node.left, stem_prefix, subindex, depth + 1)
     return _get(node.right, stem_prefix, subindex, depth + 1)
@@ -199,23 +213,26 @@ def _delete(node: Node, stem_prefix: bytes, subindex: int, depth: int) -> Node:
         return node
 
     assert isinstance(node, InternalNode)
-    bit = _bit_at(stem_prefix, depth)
+    bit = _path_bit_at(stem_prefix, depth)
     if bit == 0:
         node.left = _delete(node.left, stem_prefix, subindex, depth + 1)
     else:
         node.right = _delete(node.right, stem_prefix, subindex, depth + 1)
     node.invalidate()
 
-    # Collapse: if one side is now empty, replace this InternalNode with
-    # the surviving child (which may itself be an EmptyNode).
+    # Canonical collapse:
+    # - both empty => EmptyNode
+    # - one empty and one StemNode => surviving StemNode
+    # - one empty and one InternalNode => keep this InternalNode
+    #   (depth semantics would be invalid if we bypassed to the child).
     left_empty = isinstance(node.left, EmptyNode)
     right_empty = isinstance(node.right, EmptyNode)
 
     if left_empty and right_empty:
         return EmptyNode()
-    if left_empty:
+    if left_empty and isinstance(node.right, StemNode):
         return node.right
-    if right_empty:
+    if right_empty and isinstance(node.left, StemNode):
         return node.left
     return node
 
@@ -265,7 +282,7 @@ def get_proof(root: Node, key: bytes) -> MerkleProof:
     node = root
     depth = 0
     while isinstance(node, InternalNode):
-        bit = _bit_at(stem_prefix, depth)
+        bit = _path_bit_at(stem_prefix, depth)
         bits.append(bit)
         if bit == 0:
             siblings.append(node.right.node_hash())

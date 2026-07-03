@@ -6,6 +6,7 @@
 # Storage-type subtree IDs
 HEADER_SUBTREE: int = 0
 CODE_SUBTREE: int = 1
+METADATA_SUBTREE: int = 254
 STORAGE_SUBTREE: int = 255
 
 # Leaf key indices within the header stem
@@ -27,6 +28,12 @@ STORAGE_CHUNKS_IN_HEADER: int = 4
 # Width of a single stem (number of leaf slots per stem)
 STEM_SUBTREE_WIDTH: int = 256
 
+# Reserved metadata leaf indices in the header stem.
+METADATA_EXPIRY_EPOCH_SUBINDEX: int = 240
+METADATA_HOT_COLD_SUBINDEX: int = 241
+METADATA_ARCHIVAL_TIER_SUBINDEX: int = 242
+METADATA_FLAGS_SUBINDEX: int = 243
+
 # First subindex for overflow storage stems (256^31, i.e. 256**31)
 MAIN_STORAGE_OFFSET: int = STEM_SUBTREE_WIDTH ** 31
 
@@ -42,4 +49,7 @@ assert STEM_SUBTREE_WIDTH > HEADER_STORAGE_OFFSET > CODE_OFFSET > CODE_HASH_LEAF
 )
 assert MAIN_STORAGE_OFFSET == STEM_SUBTREE_WIDTH ** 31, (
     "MAIN_STORAGE_OFFSET must be a power of STEM_SUBTREE_WIDTH"
+)
+assert len({HEADER_SUBTREE, CODE_SUBTREE, METADATA_SUBTREE, STORAGE_SUBTREE}) == 4, (
+    "Subtree identifiers must be unique"
 )

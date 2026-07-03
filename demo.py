@@ -26,6 +26,13 @@ from pbt import (
     get_tree_key_for_code_chunk,
     encode_basic_data,
     EMPTY_VALUE,
+    StemFetchPolicy,
+    simulate_epoch_fetch_with_fallback,
+    StemWitnessPacket,
+    ProviderReliabilityTracker,
+    measure_query_pattern_leakage,
+    derive_ephemeral_state_lens,
+    filter_packets_by_ephemeral_lens,
 )
 
 
@@ -178,6 +185,140 @@ def demo_locality():
     print(f"  (Different stem from slots 0-3, so different proof depth)\n")
 
 
+def demo_private_fetch_with_fallback():
+    """Demonstrate adaptive private fetch fallback with live telemetry."""
+    print("=" * 70)
+    print("DEMO 5: Private Stem Fetch Policy With Fallback")
+    print("=" * 70)
+
+    key = bytes([0]) + bytes([0xCC] * 32) + bytes([9])
+    value = (2026).to_bytes(32, "big")
+    root = insert(EmptyNode(), key, value)
+    packet = StemWitnessPacket(
+        epoch=12,
+        block_number=700,
+        block_root=root_hash(root),
+        stem_prefix=key[:-1],
+        key=key,
+        value=value,
+        proof=get_proof(root, key),
+        bucket_id=1,
+    )
+    lens = derive_ephemeral_state_lens(
+        target_stems=[packet.stem_prefix],
+        wallet_secret=b"wallet-seed",
+        current_epoch=packet.epoch,
+        ttl_epochs=1,
+        scope_tag=b"balance+hot-slots",
+    )
+    one_time_lens = derive_ephemeral_state_lens(
+        target_stems=[packet.stem_prefix],
+        wallet_secret=b"wallet-seed",
+        current_epoch=packet.epoch,
+        ttl_epochs=2,
+        scope_tag=b"tx-precheck",
+        max_uses=1,
+    )
+    lens_packets = filter_packets_by_ephemeral_lens(lens, [packet], current_epoch=packet.epoch)
+    consumed = one_time_lens.consume(current_epoch=packet.epoch)
+
+    policy = StemFetchPolicy(
+        bucket_count=32,
+        cover_count=1,
+        required_provider_matches=2,
+        provider_redundancy=0,
+        max_epoch_lag=2,
+    )
+
+    state = {"attempt": 0}
+    attempt_logs: list[tuple[int, list[str], int, int]] = []
+    observed_providers: list[bytes] = []
+    tracker = ProviderReliabilityTracker()
+
+    def fetch_fn(plan):
+        state["attempt"] += 1
+        provider_labels = [pid.decode("ascii") for pid in plan.provider_ids]
+        attempt_logs.append(
+            (
+                state["attempt"],
+                provider_labels,
+                len(plan.target_buckets),
+                len(plan.fetch_buckets),
+            )
+        )
+        observed_providers.extend(plan.provider_ids)
+        if state["attempt"] == 1:
+            # First response is insufficient for quorum, triggering fallback.
+            return [packet], [b"provider-a"]
+        return [packet, packet], [b"provider-a", b"provider-b"]
+
+    result, plan, attempts = simulate_epoch_fetch_with_fallback(
+        base_policy=policy,
+        target_stems=[packet.stem_prefix],
+        epoch=packet.epoch,
+        secret_seed=b"wallet-seed",
+        global_salt=b"global-salt",
+        available_provider_ids=[b"provider-a", b"provider-b", b"provider-c"],
+        expected_block_root=packet.block_root,
+        current_epoch=packet.epoch,
+        fetch_fn=fetch_fn,
+        max_attempts=3,
+        reliability_tracker=tracker,
+        adaptive_tuning=True,
+        tuning_min_success_rate=0.9,
+        tuning_failure_streak_threshold=1,
+    )
+
+    print("Retry trace:")
+    for attempt_no, providers, target_bucket_count, fetch_bucket_count in attempt_logs:
+        print(
+            f"  - attempt {attempt_no}: providers={providers}, "
+            f"target_buckets={target_bucket_count}, fetch_buckets={fetch_bucket_count}"
+        )
+
+    print("Provider reliability snapshot:")
+    for provider_id, stats in sorted(tracker.snapshot().items(), key=lambda kv: kv[0]):
+        label = provider_id.decode("ascii")
+        print(
+            f"  - {label}: attempts={stats.attempts}, successes={stats.successes}, "
+            f"consecutive_failures={stats.consecutive_failures}"
+        )
+
+    privacy_metric = measure_query_pattern_leakage(observed_providers, full_interest_threshold=0.8)
+    dominant = (
+        privacy_metric.dominant_provider_id.decode("ascii")
+        if privacy_metric.dominant_provider_id is not None
+        else "none"
+    )
+    print("Session privacy metric:")
+    print(
+        "  - "
+        f"dominant_provider={dominant}, "
+        f"dominant_share={privacy_metric.dominant_provider_share:.2f}, "
+        f"hhi={privacy_metric.provider_hhi:.3f}, "
+        f"single_provider_full_interest={privacy_metric.single_provider_full_interest}"
+    )
+    print("Ephemeral state lens:")
+    print(
+        "  - "
+        f"active={lens.is_active(packet.epoch)}, "
+        f"stem_count={len(lens.stem_prefixes)}, "
+        f"selected_packets={len(lens_packets)}"
+    )
+    print(
+        "  - "
+        f"one_time_consumed={consumed}, "
+        f"one_time_active_after_consume={one_time_lens.is_active(packet.epoch)}"
+    )
+
+    print(f"✓ Attempts used: {attempts}")
+    print(f"✓ Target buckets: {list(plan.target_buckets)}")
+    print(f"✓ Fetch buckets (with cover): {list(plan.fetch_buckets)}")
+    print(f"✓ Selected providers: {[pid.decode('ascii') for pid in plan.provider_ids]}")
+    print(f"✓ Local verification result: {result.reason}\n")
+    assert result.accepted
+
+
 if __name__ == "__main__":
     print("\n" + "=" * 70)
     print("PARTITIONED BINARY TREE REFERENCE IMPLEMENTATION DEMO")
@@ -188,6 +329,7 @@ if __name__ == "__main__":
         demo_proofs(root, address, rh)
         demo_updates()
         demo_locality()
+        demo_private_fetch_with_fallback()
         
         print("=" * 70)
         print("✓ ALL DEMOS PASSED")

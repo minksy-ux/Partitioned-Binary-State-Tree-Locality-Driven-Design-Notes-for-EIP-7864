@@ -15,6 +15,14 @@
 
 This EIP specifies a Partitioned Binary Tree (PBT) as the new Ethereum state structure, replacing the hexary Patricia trie. Account headers, contract code, and contract storage are unified into a single canonical key-value tree keyed by prefix-free byte strings with fixed-width 32-byte values.
 
+The PBT is designed as a state architecture that makes private, local, and trust-minimized verification practical for ordinary users.
+
+EIP-7864 is intended to make Ethereum state access privately verifiable, locally checkable, and structurally ready for pruning and expiry.
+
+Its primary purpose is to make local verification cheaper and more universal, not merely to optimize client internals.
+
+For an end-to-end adaptive retrieval example with retry and local-verification outcomes, see [Demo Trace (Adaptive Fallback)](#demo-trace-adaptive-fallback).
+
 State is organised along two independent axes:
 
 1. **Storage-type partitioning** — a one-byte prefix (`storage_type`) physically separates header, code, and storage data, enabling independent synchronisation and differentiated handling.
@@ -31,6 +39,54 @@ The hexary Patricia trie (MPT) has three fundamental problems that motivate repl
 3. **No first-class locality.** The MPT has no notion of grouping related data. Every account field, code byte, and storage slot is an independent trie path. Adjacent accesses do not share witnesses.
 
 A PBT solves all three problems: it is strictly binary, uses no RLP, and groups related data into 256-entry stems.
+
+## Evaluation Criteria
+
+This EIP SHOULD be evaluated not only by witness size, but also by whether it makes local verification realistic for ordinary users on consumer hardware and reduces trust in RPC infrastructure.
+
+Wallets and clients SHOULD be able to verify common account and storage queries without exposing their full query pattern to any single server. The tree design SHOULD therefore preserve compatibility with privacy-preserving query mechanisms, including redundant multi-provider queries and, where practical, PIR or equivalent oblivious access techniques.
+
+Query-pattern leakage to any single provider SHOULD be treated as a protocol-level privacy metric for common state-access workflows.
+
+The state layout MUST reserve explicit extension space for future metadata such as state expiry, hot/cold classification, archival status, and access hints, provided these additions do not alter existing Merkle paths or proof formats.
+
+A conforming design is expected to:
+
+- reduce proving cost,
+- shorten branches,
+- improve adjacent-slot locality,
+- enable future state expiry,
+- and make full verification on normal devices more realistic.
+
+### Verification-First Doctrine
+
+This EIP adopts a verification-first doctrine.
+
+- The state tree MUST primarily let users verify their own state transitions and reads locally, not merely reduce implementation complexity for clients.
+- Success is measured in user terms: users SHOULD be able to verify common state access themselves without broadcasting their full interests to a single infrastructure provider.
+- Mid-range phones are a concrete target: common balance, history, and state-access checks SHOULD be privately and locally verifiable on consumer devices.
+
+### Privacy As A Success Criterion
+
+Privacy MUST be treated as part of correctness at the protocol-design level, not only a transport add-on.
+
+- If query-pattern leakage remains heavy in common wallet flows, the design MUST be treated as incomplete and require further privacy hardening.
+- Implementations SHOULD use redundant retrieval, oblivious retrieval, or equivalent composition such that no single provider can observe an entire session's query pattern.
+
+### Gradual Adoption And Minimal Surface
+
+Adoption SHOULD be progressive, additive, and low-friction.
+
+- The ecosystem MUST be able to adopt the primitive incrementally without an all-at-once migration of wallet, node, and provider stacks.
+- Designs SHOULD prefer one minimal, composable primitive over multiple special-case mechanisms.
+- The primitive MUST NOT require a mandatory global coordinator, mandatory registry, or privileged provider class.
+
+### Future-Proof Compatibility
+
+This design is intentionally forward-compatible.
+
+- The primitive MUST remain compatible with pruning, state-expiry evolution, and future account-model changes.
+- Future extensions SHOULD attach via reserved metadata locations or equivalent additive mechanisms without changing canonical proofs for existing state.
 
 ## Specification
 
@@ -296,7 +352,7 @@ Expected witness-cost properties:
 
 ### Metadata And State-Expiry Hooks
 
-The design MUST reserve a clear extension point for future metadata. Reserved subindex ranges in each stem MAY be allocated for:
+The design MUST reserve a clear extension point for future metadata. Implementations MUST define explicit reserved metadata space, either via reserved subindex ranges, reserved `storage_type` partitions, or both, and MUST publish that reservation map as part of consensus constants before activation. Reserved metadata space is used for:
 
 - expiry epoch buckets,
 - hot/cold classification flags,
@@ -520,7 +576,7 @@ Account abstraction (EIP-4337 or equivalent) MUST be the migration mechanism: ac
 
 **Requirement.** Verified RPC MUST be the default UX for wallets, not an opt-in feature.
 
-**Principle.** A wallet that receives a response from an untrusted RPC endpoint MUST treat that response as an unverified input and verify it locally before presenting it to the user. Wallets that do not verify are violating this requirement.
+**Principle.** A wallet or client that receives a response from an untrusted RPC endpoint MUST treat that response as unverified input and locally verify the corresponding state proof before using it for stateful decisions, transaction construction, or final UI claims. Wallets or clients that do not verify are violating this requirement.
 
 **Verification mechanisms.** Wallets MUST support at least one of:
 
@@ -530,7 +586,7 @@ Account abstraction (EIP-4337 or equivalent) MUST be the migration mechanism: ac
 
 The PBT defined in this EIP is designed to make the second option significantly cheaper: a single stem opening serves the hot state of a typical account, reducing the data required for a Helios-style state proof from many independent trie paths to one stem proof.
 
-**RPC trust model.** Wallets MUST clearly communicate to users whether an RPC response has been locally verified. Unverified data MUST be visually distinguished in wallet UIs. The phrase "verified" in a wallet UI MUST mean locally verified, not "from a trusted provider."
+**RPC trust model.** Wallets MUST clearly communicate to users whether an RPC response has been locally verified. Unverified data MUST be visually distinguished in wallet UIs and MUST be surfaced in an explicit "unverified" mode for any value not checked locally. The phrase "verified" in a wallet UI MUST mean locally verified, not "from a trusted provider."
 
 **Consumer hardware guarantee.** The protocol MUST be designed so that a mid-range smartphone can run meaningful local verification — not merely light-client heuristics — for all state queries that a typical user makes. See the resource budgets in the Full Verification section above.
 
@@ -557,7 +613,7 @@ This is sufficient to deanonymise users with high confidence, even without acces
 | Mixnet routing | queries are routed through a mix network before reaching the RPC endpoint |
 | Redundant multi-provider queries | queries are sent to multiple independent providers and results are compared; no single provider sees the full query pattern |
 
-At minimum, reference wallet implementations MUST support redundant multi-provider queries as a baseline. PIR or ORAM integration is RECOMMENDED for production wallets handling sensitive financial data.
+At minimum, reference wallet implementations MUST support redundant multi-provider queries as a baseline for balance, history, and log lookups, such that no single provider observes the full query pattern of a session. PIR or ORAM integration is RECOMMENDED for production wallets handling sensitive financial data and SHOULD be preferred where practical.
 
 **Privacy payments.** "Privacy payments that feel like normal payments" MUST be a core UX goal, not a feature limited to specialised applications. Specifically:
 
@@ -626,6 +682,7 @@ At minimum, reference wallet implementations MUST support redundant multi-provid
 **AI-assisted proof generation.** AI-generated proofs are PERMITTED as a helper tool, subject to the following constraints:
 
 - AI-generated proof steps MUST be checked by a mechanised proof assistant (e.g., Lean 4, Coq, Isabelle/HOL). An AI-generated proof that has not been machine-checked does not satisfy this requirement.
+- Proof artifacts MUST be reproducibly re-checkable by independent implementations of the chosen proof assistant toolchain.
 - The canonical proof language standardised by this EIP MUST be usable as the output format for AI-generated proofs, so that proofs can be re-checked independently.
 - AI tools used in the proof pipeline MUST be disclosed in the EIP. The proof MUST be reproducible without the specific AI tool used to generate it.
 
@@ -796,6 +853,233 @@ def _node_hash(node: Node) -> bytes:
 
 Multi-key proofs MAY share path prefixes and stem nodes; the proof format for multi-key witnesses is out of scope for this EIP but MUST be compatible with the single-key proof above.
 
+### Privacy-Respecting Stem Subscription
+
+#### EIP-7864 Add-On: Stem Subscription and Oblivious Witness Delivery
+
+##### Abstract
+
+This EIP MAY define an optional, minimal protocol primitive for privacy-preserving state access and local verification of stem-local state. The primitive allows wallets and clients to subscribe to relevant stems without revealing the exact accounts or storage keys they care about, and allows witness providers to deliver stem proofs through privacy-preserving channels. The design goal is to reduce RPC trust and metadata leakage, not to expand consensus complexity.
+
+Witness delivery remains optional, but the protocol path is intentionally standardized: a minimal native path for private stem retrieval is preferred to fragmented off-chain convention.
+
+An implementation-level execution trace of this flow is provided in [Demo Trace (Adaptive Fallback)](#demo-trace-adaptive-fallback).
+
+EIP-7864 therefore treats stem locality as a privacy-preserving verification primitive, not merely as an off-chain witness-delivery convenience.
+
+Hard constraints: the primitive is optional, local-verification-first, requires no registry for correctness, introduces no new trusted parties, and remains compatible with stateless and partially stateless clients.
+
+##### Motivation
+
+EIP-7864 makes stems the natural locality unit for state access. This creates an opportunity to standardize a privacy-preserving mechanism for clients that want to locally verify only the state they actually use, without exposing their query pattern to a single RPC provider. The goal is to make consumer-device verification more practical while reducing metadata leakage.
+
+This add-on is intentionally non-invasive: the core tree design remains primary, while witness distribution is an optional layer for "local verification by default" workflows.
+
+##### Design Principles
+
+- Optional, non-invasive witness distribution.
+- Minimal protocol surface with no required new consensus state.
+- Consumer-device verifiability as a first-order objective.
+- Minimize RPC metadata leakage and single-provider trust.
+- Composable with stateless and partially stateless execution modes.
+- Aligned with pruning and expiry evolution without requiring new coordination layers.
+- Ephemeral state lenses: wallets MAY derive short-lived private views over only required stems, with optional one-time/bounded-use burn semantics, then automatically discard them after use.
+
+##### Primitive Scope
+
+This section specifies a minimal protocol path for obtaining and verifying relevant stems privately and locally.
+
+The path is normative at the interface level (commitment, bundle, proof verification, validation rules) and intentionally non-prescriptive about transport internals. Implementations MAY choose different transport substrates as long as privacy and verification requirements in this section are preserved.
+
+##### Trust Model
+
+The primitive MUST NOT introduce new trusted parties. Witness providers, relays, brokers, bulletin layers, and storage layers are untrusted transport surfaces.
+
+Correctness MUST come from local proof verification against a locally verified header/root pipeline, not from provider reputation, signatures, or registry membership.
+
+Provider attestations MAY be carried for observability or accountability, but they MUST NOT be treated as sufficient for state correctness.
+
+##### Specification
+
+A client MAY create a short-lived Interest Commitment representing a rotating set of stems it expects to query. The commitment MUST be time-limited and SHOULD be unlinkable across epochs.
+
+Witness providers MAY publish Witness Bundles containing:
+
+- the stem values needed to verify a set of relevant leaves,
+- the sibling hashes required to reconstruct the Merkle path,
+- a block reference,
+- and an optional provider attestation.
+
+Witness Bundles MUST be decryptable only by clients holding the corresponding ephemeral key, or retrievable through an oblivious access method such as PIR, ORAM, or equivalent privacy-preserving transport.
+
+The primitive MUST remain optional and MUST NOT modify canonical tree structure, root computation, or proof rules in EIP-7864.
+
+The primitive MUST be composable: clients MAY use it alongside existing RPC/state-sync mechanisms, and implementations MUST NOT require a dedicated global coordinator to participate.
+
+Implementations MUST support local verification by default: delivered witness data are untrusted until proof checks pass. If checks fail or data are incomplete, the client MUST reject and retry via another transport/provider path.
+
+Implementations SHOULD ensure that no single server learns the full query pattern of a client session; redundant retrieval, oblivious retrieval, or equivalent privacy-preserving composition SHOULD be used to meet this objective.
+
+The protocol SHOULD support the following retrieval modes:
+
+- Encrypted rendezvous delivery, where providers post encrypted bundles to a public bulletin or storage layer.
+- Redundant multi-provider retrieval, where clients request the same witness from multiple providers and compare results.
+- PIR-style retrieval, where the provider cannot determine which bundle was requested.
+
+##### Verification Flow
+
+A client that receives a Witness Bundle MUST verify:
+
+1. the stem root against the canonical block header root,
+2. the sibling path against the binary tree rules in EIP-7864,
+3. and the leaf values against the local state transition being applied.
+
+If the witness is incomplete or malformed, the client MUST reject it and MAY retry from another provider.
+
+##### Stateless Compatibility
+
+This primitive is designed to compose with both stateless and partially stateless clients.
+
+- A stateless client MAY request only the stems needed for current execution and discard them after verification.
+- A partially stateless client MAY retain a rolling local cache of hot stems and fetch misses through the same primitive.
+- In both modes, the verification rule is identical: witnesses are accepted only after local proof verification against the canonical root.
+
+No additional trusted sync role is required for either client mode.
+
+##### Pruning And Expiry Alignment
+
+This primitive MUST remain compatible with future pruning and state-expiry semantics.
+
+- Witness bundles MAY include expiry-related metadata proofs only from reserved metadata locations defined by this EIP.
+- Introducing expiry metadata through reserved space MUST NOT change canonical key derivation, tree shape rules, or proof verification flow for existing leaves.
+- Clients that are stateless or partially stateless MUST be able to verify expiry-related metadata with the same local-verification pipeline used for ordinary stem leaves.
+
+##### Privacy Requirements
+
+Clients SHOULD rotate Interest Commitment keys frequently. Providers SHOULD aggregate many client commitments before serving bundles, to increase anonymity sets. Implementations SHOULD support dummy fetches or cover traffic when stronger privacy is desired.
+
+##### Optional Registry
+
+An optional registry MAY allow users to post small bonded commitments to chosen witness providers. Providers MAY advertise latency and availability guarantees, and MAY be penalized for repeated non-delivery.
+
+The registry is explicitly non-core: implementations MUST function without it, and the base protocol MUST NOT depend on registry participation for correctness or liveness.
+
+##### Non-Requirements
+
+- No mandatory on-chain registry.
+- No mandatory trusted relay network.
+- No mandatory provider attestation format for correctness.
+- No mandatory global coordinator or scheduling service.
+- No changes to canonical EIP-7864 state transition or root derivation rules.
+
+##### Rationale
+
+This design turns stem locality into a privacy-preserving protocol primitive rather than just an efficiency optimization. It also creates a standardized path for partially stateless clients, mobile verifiers, and privacy-aware wallets to participate without trusting a single RPC endpoint.
+
+The intention is less trust, less leakage, and easier local verification on normal devices, not a broad feature pile.
+
+EIP-7864 should do more than compress Ethereum state proofs; it should make private, locally verifiable state access a first-class protocol property. In practical terms, stem locality should function as a privacy-preserving verification primitive so users can verify their own state without relying on a single trusted RPC provider.
+
+##### Backward Compatibility
+
+This primitive is additive and does not alter the canonical state tree, proof format, or root hash rules defined by EIP-7864.
+
+##### Stronger Variant
+
+For higher privacy deployments, the preferred variant is:
+
+- subscription commitments are on-chain,
+- witness bundles are encrypted off-chain,
+- and retrieval is PIR-backed by default for wallets opting into high privacy.
+
+The following canonical wire format applies to the add-on primitive above.
+
+#### Canonical Wire Format
+
+This section defines a canonical binary wire format so independent clients can interoperate.
+
+**Encoding rules (global):**
+
+- Unsigned integers are big-endian.
+- `bytesN` means exactly `N` bytes.
+- `u16_len || bytes` means a 2-byte length prefix followed by that many bytes.
+- `u32_len || bytes` means a 4-byte length prefix followed by that many bytes.
+- Field order is normative and MUST be preserved.
+
+##### 1. Subscription Registration Record (`SUB_REG_V1`)
+
+| Field | Type | Size (bytes) | Notes |
+|---|---|---:|---|
+| `version` | `u8` | 1 | MUST be `1` |
+| `commitment` | `bytes32` | 32 | commitment over wallet secret/policy |
+| `window_start_epoch` | `u64` | 8 | inclusive |
+| `window_end_epoch` | `u64` | 8 | inclusive |
+| `max_buckets_per_epoch` | `u32` | 4 | anti-DoS retrieval budget |
+| `encryption_pubkey` | `u16_len || bytes` | variable | optional; `len=0` allowed |
+
+`SUB_REG_V1` total size is `53 + len(encryption_pubkey)` bytes.
+
+##### 2. Stem Witness Packet Record (`STEM_PKT_V1`)
+
+| Field | Type | Size (bytes) | Notes |
+|---|---|---:|---|
+| `version` | `u8` | 1 | MUST be `1` |
+| `epoch` | `u64` | 8 | distribution epoch |
+| `block_number` | `u64` | 8 | source block number |
+| `block_root` | `bytes32` | 32 | verified state root |
+| `bucket_id` | `u32` | 4 | distribution bucket |
+| `stem_prefix` | `u16_len || bytes` | variable | canonical stem prefix |
+| `key` | `u16_len || bytes` | variable | full tree key |
+| `value` | `bytes32` | 32 | leaf value |
+| `proof_blob` | `u32_len || bytes` | variable | canonical Merkle proof payload |
+| `packet_commitment` | `bytes32` | 32 | commitment over packet fields |
+
+`packet_commitment` MUST be computed over every preceding field in `STEM_PKT_V1` except itself.
+
+`proof_blob` MUST encode the proof fields from this EIP's single-key proof model in the following order:
+
+| Subfield | Type | Size (bytes) | Notes |
+|---|---|---:|---|
+| `proof_key` | `u16_len || bytes` | variable | MUST equal `key` |
+| `proof_value` | `bytes32` | 32 | MUST equal `value` |
+| `stem_values_count` | `u16` | 2 | MUST be `256` |
+| `stem_values` | `256 * bytes32` | 8192 | full stem payload |
+| `siblings_count` | `u16` | 2 | path length |
+| `siblings` | `siblings_count * bytes32` | variable | root-to-leaf order |
+| `path_bits_count` | `u16` | 2 | MUST equal `siblings_count` |
+| `path_bits` | `path_bits_count * u8` | variable | each value MUST be `0` or `1` |
+
+##### 3. Bucket Manifest Record (`BUCKET_MANIFEST_V1`)
+
+| Field | Type | Size (bytes) | Notes |
+|---|---|---:|---|
+| `version` | `u8` | 1 | MUST be `1` |
+| `epoch` | `u64` | 8 | epoch |
+| `bucket_id` | `u32` | 4 | bucket identifier |
+| `packet_count` | `u32` | 4 | number of packet commitments |
+| `packet_commitments` | `packet_count * bytes32` | variable | in canonical order |
+| `packets_root` | `bytes32` | 32 | commitment over `packet_commitments` |
+
+`packets_root` MUST be computed as the hash-chain commitment used by the reference implementation's manifest constructor.
+
+##### 4. Canonical Ordering For Manifest Construction
+
+Before computing `packets_root`, implementations MUST sort packet commitments lexicographically by raw byte value unless a stronger canonical ordering is specified at fork activation. All participants in the same network MUST use the same ordering rule.
+
+##### 5. Validation Rules (Wire Layer)
+
+Implementations MUST reject records when any of the following hold:
+
+- unknown `version`,
+- invalid length prefix or truncated payload,
+- `proof_key != key`,
+- `proof_value != value`,
+- `stem_values_count != 256`,
+- `siblings_count != path_bits_count`,
+- any `path_bits` entry not in `{0, 1}`,
+- `packet_commitment` mismatch,
+- `packets_root` mismatch.
+
 ### Gas Accounting
 
 The PBT introduces a **stem-aware** access cost model. Within a single transaction:
@@ -950,6 +1234,32 @@ A reference implementation in Python is maintained at [`pbt/`](./pbt/) in this r
 | `tests/` | property-based and unit tests covering all test cases above |
 
 The reference implementation is normative for tie-breaking in cases where this document is ambiguous. It MUST stay within the phone-grade resource budgets defined in the Broader Protocol Requirements section.
+
+## Demo Trace (Adaptive Fallback)
+
+The reference demo in `demo.py` includes an adaptive private-fetch scenario that shows retry broadening and local verification outcomes.
+
+Run it locally:
+
+```bash
+python demo.py
+```
+
+Example trace (abridged):
+
+```text
+DEMO 5: Private Stem Fetch Policy With Fallback
+Retry trace:
+    - attempt 1: providers=['provider-b', 'provider-a'], target_buckets=1, fetch_buckets=2
+    - attempt 2: providers=['provider-b', 'provider-a', 'provider-c'], target_buckets=1, fetch_buckets=4
+Provider reliability snapshot:
+    - provider-a: attempts=1, successes=1, consecutive_failures=0
+    - provider-b: attempts=1, successes=0, consecutive_failures=1
+✓ Attempts used: 2
+✓ Local verification result: fresh redundant quorum locally verified
+```
+
+This trace illustrates the intended behavior: an initial under-quorum response triggers broader provider/bucket selection, and correctness remains determined by local proof checks rather than provider trust.
 
 ---
 
