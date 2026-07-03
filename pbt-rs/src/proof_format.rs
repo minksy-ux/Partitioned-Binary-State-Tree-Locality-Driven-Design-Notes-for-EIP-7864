@@ -6,6 +6,8 @@ use flate2::Compression;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::io::{Read, Write};
 
+const MAX_DECOMPRESSED_PROOF_BYTES: usize = 16 * 1024 * 1024;
+
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum ProofMode {
     Blake3,
@@ -115,11 +117,15 @@ fn compress_bytes(raw: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 fn decompress_bytes(encoded: &[u8]) -> Result<Vec<u8>, String> {
-    let mut decoder = GzDecoder::new(encoded);
+    let decoder = GzDecoder::new(encoded);
     let mut out = Vec::<u8>::new();
-    decoder
+    let mut limited = decoder.take((MAX_DECOMPRESSED_PROOF_BYTES as u64) + 1);
+    limited
         .read_to_end(&mut out)
         .map_err(|err| format!("gzip decode error: {err}"))?;
+    if out.len() > MAX_DECOMPRESSED_PROOF_BYTES {
+        return Err("gzip decode error: decompressed payload exceeds safety limit".to_string());
+    }
     Ok(out)
 }
 

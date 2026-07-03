@@ -70,3 +70,11 @@ fn vector_fold_compressed_round_trip() {
         decode_vector_fold_proof_compressed(&encoded).expect("compressed decode should succeed");
     assert!(verify_vector_fold_proof(&decoded));
 }
+
+#[test]
+fn compressed_decoders_reject_corrupted_payloads() {
+    let bad = vec![0x00u8, 0x01, 0x02, 0x03, 0x04];
+
+    assert!(decode_batch_proof_compressed(&bad).is_err());
+    assert!(decode_vector_fold_proof_compressed(&bad).is_err());
+}
