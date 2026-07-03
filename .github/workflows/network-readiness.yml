@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PBT_RELEASE_MODE: ${{ (github.ref_name == 'main' || github.ref_name == 'master') && '1' || '0' }}
+      PBT_SIGNING_ENABLED: ${{ secrets.PBT_SIGNING_KEY != '' && '1' || '0' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -114,17 +115,21 @@ jobs:
 
       - name: Build release bundle
         env:
-          SUPPLY_CHAIN_SIGNING: "disabled"
+          SUPPLY_CHAIN_SIGNING: ${{ env.PBT_SIGNING_ENABLED == '1' && 'enabled' || 'disabled' }}
           CI: "true"
           RELEASE_BUNDLE_RUN_TESTS: "0"
         run: bash pbt-rs/scripts/release_bundle.sh
 
       - name: Generate supply chain artifacts
+        env:
+          PBT_SIGNING_KEY: ${{ secrets.PBT_SIGNING_KEY }}
+          SUPPLY_CHAIN_SIGNING: ${{ env.PBT_SIGNING_ENABLED == '1' && 'enabled' || 'disabled' }}
         run: python scripts/generate_supply_chain_artifacts.py
 
       - name: Validate supply chain artifacts
         env:
-          SUPPLY_CHAIN_SIGNING: "disabled"
+          PBT_SIGNING_ENABLED: ${{ env.PBT_SIGNING_ENABLED }}
+          SUPPLY_CHAIN_SIGNING: ${{ env.PBT_SIGNING_ENABLED == '1' && 'enabled' || 'disabled' }}
         run: python scripts/validate_supply_chain_artifacts.py
 
       - name: Verify release artifacts

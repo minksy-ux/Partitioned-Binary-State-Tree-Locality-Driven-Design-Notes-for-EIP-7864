@@ -40,6 +40,15 @@ def _is_signing_explicitly_disabled() -> bool:
     return env in {"0", "false", "no", "off", "disabled"}
 
 
+def _is_signing_enabled_requested() -> bool:
+    env = os.environ.get("PBT_SIGNING_ENABLED", "").strip().lower()
+    if env in {"1", "true", "yes", "on"}:
+        return True
+    if env in {"0", "false", "no", "off"}:
+        return False
+    return not _is_signing_explicitly_disabled()
+
+
 def fail(message: str) -> int:
     print(f"supply-chain: FAIL: {message}")
     return 1
@@ -85,8 +94,11 @@ def main() -> int:
     signing_status = (DIST / "signing-status.txt").read_text(encoding="utf-8")
     release_mode = _is_release_mode()
     if "signing: enabled" not in signing_status:
-        if release_mode and not _is_signing_explicitly_disabled():
-            return fail("release mode requires signing: enabled")
+        if release_mode and _is_signing_enabled_requested():
+            return fail(
+                "release mode requires signing: enabled when PBT_SIGNING_ENABLED=1; "
+                "configure signing key material or set PBT_SIGNING_ENABLED=0"
+            )
         if not SIGNING_WAIVER.exists():
             return fail(
                 "strict signing policy requires signing: enabled or dist/signing-waiver.json"
