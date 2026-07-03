@@ -24,6 +24,7 @@ pbt_eip7864.egg-info/top_level.txt
 tests/test_embedding.py
 tests/test_formal.py
 tests/test_formal_dashboard.py
+tests/test_fuzz_parsers.py
 tests/test_gas.py
 tests/test_hash.py
 tests/test_metadata.py
