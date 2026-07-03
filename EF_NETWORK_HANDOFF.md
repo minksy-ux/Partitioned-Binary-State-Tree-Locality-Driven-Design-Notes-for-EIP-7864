@@ -72,6 +72,12 @@ Artifacts written to `dist/`:
 - `pbt-rs-source.tar.gz`
 - `pbt-rs-sha256.txt`
 - `network-readiness-summary.txt`
+- `release-manifest.json`
+- `signing-status.txt`
+- `release-manifest.json.sig` (when signing is configured)
+- `pbt-rs-source.tar.gz.sig` (when signing is configured)
+
+The release manifest records commit provenance and artifact checksums. Detached signatures are generated when a GPG secret key is available in the environment.
 
 ## What EF/Client Teams Can Do Next
 
