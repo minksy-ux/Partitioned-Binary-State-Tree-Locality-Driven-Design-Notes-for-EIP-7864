@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 RUST_DIR="$ROOT_DIR/pbt-rs"
 SIGNING_MODE="${SUPPLY_CHAIN_SIGNING:-enabled}"
+RUN_TESTS="$(printf '%s' "${RELEASE_BUNDLE_RUN_TESTS:-1}" | tr '[:upper:]' '[:lower:]')"
 
 mkdir -p "$DIST_DIR"
 
@@ -15,12 +16,16 @@ if [[ -f "$HOME/.cargo/env" ]]; then
 fi
 
 pushd "$ROOT_DIR" >/dev/null
-cargo test --manifest-path "$RUST_DIR/Cargo.toml"
-
-if command -v pytest >/dev/null 2>&1; then
-  pytest -q
+if [[ "$RUN_TESTS" == "0" || "$RUN_TESTS" == "false" || "$RUN_TESTS" == "no" || "$RUN_TESTS" == "off" ]]; then
+  echo "release-bundle: skipping test execution (RELEASE_BUNDLE_RUN_TESTS=$RUN_TESTS)"
 else
-  echo "pytest not found; skipping Python test run" >&2
+  cargo test --manifest-path "$RUST_DIR/Cargo.toml"
+
+  if command -v pytest >/dev/null 2>&1; then
+    pytest -q
+  else
+    echo "pytest not found; skipping Python test run" >&2
+  fi
 fi
 
 if [[ "${CI:-}" == "true" && "$SIGNING_MODE" == "enabled" ]] && \

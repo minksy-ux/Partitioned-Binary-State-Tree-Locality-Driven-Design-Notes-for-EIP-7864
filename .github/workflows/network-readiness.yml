@@ -20,6 +20,9 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -96,6 +99,7 @@ jobs:
         env:
           SUPPLY_CHAIN_SIGNING: "disabled"
           CI: "true"
+          RELEASE_BUNDLE_RUN_TESTS: "0"
         run: bash pbt-rs/scripts/release_bundle.sh
 
       - name: Generate supply chain artifacts

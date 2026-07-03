@@ -30,10 +30,24 @@ def run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True, cwd=ROOT)
 
 
+def _has_release_bundle_artifacts() -> bool:
+    return all(path.exists() for path in REQUIRED_RELEASE_ARTIFACTS)
+
+
 def ensure_release_bundle() -> None:
     python = sys.executable
     run([python, "scripts/validate_network_readiness.py"])
     run([python, "scripts/validate_release_notes.py"])
+
+    if _has_release_bundle_artifacts():
+        try:
+            run([python, "scripts/verify_release_artifacts.py"])
+            return
+        except subprocess.CalledProcessError:
+            # Existing artifacts can be stale (for example, a tarball updated
+            # without refreshed provenance). Fall back to regeneration.
+            pass
+
     run(["bash", "pbt-rs/scripts/release_bundle.sh"])
     run([python, "scripts/generate_supply_chain_artifacts.py"])
     run([python, "scripts/verify_release_artifacts.py"])
