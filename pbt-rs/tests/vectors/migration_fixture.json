@@ -1,0 +1,28 @@
+{
+  "accounts": [
+    {
+      "address_hex": "1010101010101010101010101010101010101010101010101010101010101010",
+      "version": 1,
+      "balance": 100,
+      "nonce": 2,
+      "code_hex": "6001600055",
+      "code_hash_hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "storage": [
+        { "slot": 0, "value_hex": "1111111111111111111111111111111111111111111111111111111111111111" },
+        { "slot": 1, "value_hex": "2222222222222222222222222222222222222222222222222222222222222222" }
+      ]
+    },
+    {
+      "address_hex": "2020202020202020202020202020202020202020202020202020202020202020",
+      "version": 3,
+      "balance": 999,
+      "nonce": 7,
+      "code_hex": "6002600155",
+      "code_hash_hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "storage": [
+        { "slot": 0, "value_hex": "3333333333333333333333333333333333333333333333333333333333333333" },
+        { "slot": 257, "value_hex": "4444444444444444444444444444444444444444444444444444444444444444" }
+      ]
+    }
+  ]
+}

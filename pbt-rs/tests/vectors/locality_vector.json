@@ -1,0 +1,16 @@
+{
+  "address_hex": "7777777777777777777777777777777777777777777777777777777777777777",
+  "groups": [
+    {
+      "name": "header_stem_locality",
+      "slots": [0, 1, 2, 3],
+      "expect_same_path": true
+    },
+    {
+      "name": "overflow_storage_stem",
+      "slots": [4, 5, 6],
+      "expect_same_path": true
+    }
+  ],
+  "cross_group_expect_different_path": true
+}
