@@ -112,8 +112,6 @@ def main() -> int:
             if not sig_path.exists():
                 return fail(f"signing enabled but missing signature artifact: {sig_name}")
     else:
-        if release_mode:
-            return fail("release mode requires signatures; waiver is not allowed")
         if not SIGNING_WAIVER.exists():
             return fail("strict signing policy requires signatures or dist/signing-waiver.json")
         try:

@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "artifact_type": "network_readiness_release_bundle",
-  "generated_at_utc": "2026-07-03T15:01:24Z",
-  "git_commit": "ae2e47a3cd959fc85e0fc9b0f84b8e4450dff444",
+  "generated_at_utc": "2026-07-03T15:05:51Z",
+  "git_commit": "76a43875afdae9f55bf41af176c5fa34d4d15500",
   "artifacts": [
     {
       "path": "dist/pbt-rs-source.tar.gz",
@@ -14,7 +14,7 @@
     },
     {
       "path": "dist/network-readiness-summary.txt",
-      "sha256": "0b9064d9882126f4540686953ba22705c61f32d0ba0f4e709cff487be447b7e9"
+      "sha256": "15763e8304bdc0022253fd9d5e21b68664fe55a3a1f69fe5d895f31b2a8fba0c"
     }
   ],
   "signing": {
