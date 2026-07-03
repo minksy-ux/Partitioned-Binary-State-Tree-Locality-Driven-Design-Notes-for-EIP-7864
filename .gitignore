@@ -1,0 +1,7 @@
+# Python bytecode and cache artifacts
+__pycache__/
+*.py[cod]
+
+# Test and tooling caches
+.pytest_cache/
+.hypothesis/

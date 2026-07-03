@@ -11,6 +11,7 @@ protocol for stem witness delivery:
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass, replace
 from typing import Callable, Iterable
 
@@ -23,8 +24,13 @@ from .constants import (
 from .hash import tree_hash
 from .tree import MerkleProof, split_key, verify_proof
 
-
 WIRE_VERSION_V1 = 1
+MAX_PACKET_WIRE_BYTES = 262144
+MAX_PROOF_BLOB_BYTES = 131072
+MAX_STEM_PREFIX_BYTES = 256
+MAX_KEY_BYTES = 512
+MAX_PATH_COMPONENTS = 4096
+MAX_MANIFEST_PACKET_COUNT = 16384
 
 
 @dataclass(frozen=True)
@@ -525,7 +531,11 @@ def simulate_epoch_fetch_with_fallback(
         available_provider_ids=available_provider_ids,
     )
     last_result = LocalVerificationResult(False, "no attempts executed")
-    tracker = reliability_tracker if reliability_tracker is not None else ProviderReliabilityTracker()
+    tracker = (
+        reliability_tracker
+        if reliability_tracker is not None
+        else ProviderReliabilityTracker()
+    )
 
     for attempt in range(1, max_attempts + 1):
         last_plan = policy.plan_fetch(
@@ -559,7 +569,11 @@ def simulate_epoch_fetch_with_fallback(
                 tracker.record_result(provider_id, accepted=False, reason="stale response")
                 continue
             if not verify_witness_packet(packet):
-                tracker.record_result(provider_id, accepted=False, reason="proof verification failed")
+                tracker.record_result(
+                    provider_id,
+                    accepted=False,
+                    reason="proof verification failed",
+                )
                 continue
             tracker.record_result(provider_id, accepted=True, reason="ok")
 
@@ -605,22 +619,65 @@ class StatelessStemClient:
 class PartiallyStatelessStemClient(StatelessStemClient):
     """Local-verification-first client with a rolling hot-stem cache."""
 
-    def __init__(self, verified_block_root: bytes):
+    def __init__(self, verified_block_root: bytes, max_cached_stems: int = 128):
         super().__init__(verified_block_root)
-        self._stem_cache: dict[bytes, list[bytes]] = {}
+        if max_cached_stems <= 0:
+            raise ValueError("max_cached_stems must be positive")
+        self.max_cached_stems = max_cached_stems
+        self._stem_cache: OrderedDict[bytes, list[bytes]] = OrderedDict()
+        self.cache_hits = 0
+        self.cache_misses = 0
+
+    def set_verified_block_root(self, verified_block_root: bytes, clear_cache: bool = True) -> None:
+        """Rotate trusted root, optionally clearing stale cached stems.
+
+        In normal operation, roots change per block and cached stem payloads are
+        expected to be block-root scoped. Clearing on root updates is safest.
+        """
+        self.verified_block_root = verified_block_root
+        if clear_cache:
+            self.clear_cache()
+
+    def clear_cache(self) -> None:
+        self._stem_cache.clear()
+
+    def cache_stats(self) -> dict[str, int | float]:
+        total = self.cache_hits + self.cache_misses
+        hit_rate = self.cache_hits / total if total else 0.0
+        return {
+            "cached_stems": len(self._stem_cache),
+            "max_cached_stems": self.max_cached_stems,
+            "cache_hits": self.cache_hits,
+            "cache_misses": self.cache_misses,
+            "hit_rate": hit_rate,
+        }
 
     def verify_and_cache_packet(self, packet: StemWitnessPacket) -> LocalVerificationResult:
         result = self.verify_packet(packet)
         if not result.accepted:
             return result
+
+        # LRU update: overwrite existing and mark as most recently used.
+        if packet.stem_prefix in self._stem_cache:
+            del self._stem_cache[packet.stem_prefix]
         self._stem_cache[packet.stem_prefix] = list(packet.proof.stem_values)
+        self._stem_cache.move_to_end(packet.stem_prefix)
+
+        # Enforce bounded hot-stem cache size via LRU eviction.
+        if len(self._stem_cache) > self.max_cached_stems:
+            self._stem_cache.popitem(last=False)
+
         return LocalVerificationResult(True, "packet locally verified and cached")
 
     def cached_value(self, key: bytes) -> bytes | None:
         stem_prefix, subindex = split_key(key)
         values = self._stem_cache.get(stem_prefix)
         if values is None:
+            self.cache_misses += 1
             return None
+        self.cache_hits += 1
+        # Reading also refreshes recency for hot-stem retention.
+        self._stem_cache.move_to_end(stem_prefix)
         return values[subindex]
 
 
@@ -734,15 +791,29 @@ def _read_exact(blob: bytes, offset: int, size: int) -> tuple[bytes, int]:
     return blob[offset : offset + size], offset + size
 
 
-def _read_u16_len(blob: bytes, offset: int) -> tuple[bytes, int]:
+def _read_u16_len(
+    blob: bytes,
+    offset: int,
+    *,
+    max_size: int | None = None,
+) -> tuple[bytes, int]:
     raw_len, offset = _read_exact(blob, offset, 2)
     size = int.from_bytes(raw_len, "big")
+    if max_size is not None and size > max_size:
+        raise ValueError("length-prefixed field exceeds configured maximum")
     return _read_exact(blob, offset, size)
 
 
-def _read_u32_len(blob: bytes, offset: int) -> tuple[bytes, int]:
+def _read_u32_len(
+    blob: bytes,
+    offset: int,
+    *,
+    max_size: int | None = None,
+) -> tuple[bytes, int]:
     raw_len, offset = _read_exact(blob, offset, 4)
     size = int.from_bytes(raw_len, "big")
+    if max_size is not None and size > max_size:
+        raise ValueError("length-prefixed field exceeds configured maximum")
     return _read_exact(blob, offset, size)
 
 
@@ -785,8 +856,10 @@ def _encode_proof_blob(proof: MerkleProof) -> bytes:
 
 
 def _decode_proof_blob(blob: bytes) -> MerkleProof:
+    if len(blob) > MAX_PROOF_BLOB_BYTES:
+        raise ValueError("proof_blob exceeds configured maximum")
     offset = 0
-    proof_key, offset = _read_u16_len(blob, offset)
+    proof_key, offset = _read_u16_len(blob, offset, max_size=MAX_KEY_BYTES)
     proof_value, offset = _read_exact(blob, offset, 32)
 
     stem_count_raw, offset = _read_exact(blob, offset, 2)
@@ -800,6 +873,8 @@ def _decode_proof_blob(blob: bytes) -> MerkleProof:
 
     siblings_count_raw, offset = _read_exact(blob, offset, 2)
     siblings_count = int.from_bytes(siblings_count_raw, "big")
+    if siblings_count > MAX_PATH_COMPONENTS:
+        raise ValueError("siblings_count exceeds configured maximum")
     siblings: list[bytes] = []
     for _ in range(siblings_count):
         sibling, offset = _read_exact(blob, offset, 32)
@@ -807,6 +882,8 @@ def _decode_proof_blob(blob: bytes) -> MerkleProof:
 
     path_bits_count_raw, offset = _read_exact(blob, offset, 2)
     path_bits_count = int.from_bytes(path_bits_count_raw, "big")
+    if path_bits_count > MAX_PATH_COMPONENTS:
+        raise ValueError("path_bits_count exceeds configured maximum")
     if siblings_count != path_bits_count:
         raise ValueError("siblings_count must equal path_bits_count")
     path_bits: list[int] = []
@@ -914,6 +991,8 @@ def encode_stem_witness_packet_v1(packet: StemWitnessPacket) -> bytes:
 
 def decode_stem_witness_packet_v1(blob: bytes) -> StemWitnessPacket:
     """Decode and validate STEM_PKT_V1 record."""
+    if len(blob) > MAX_PACKET_WIRE_BYTES:
+        raise ValueError("packet wire exceeds configured maximum")
     offset = 0
     version_raw, offset = _read_exact(blob, offset, 1)
     version = version_raw[0]
@@ -924,10 +1003,10 @@ def decode_stem_witness_packet_v1(blob: bytes) -> StemWitnessPacket:
     block_number_raw, offset = _read_exact(blob, offset, 8)
     block_root, offset = _read_exact(blob, offset, 32)
     bucket_id_raw, offset = _read_exact(blob, offset, 4)
-    stem_prefix, offset = _read_u16_len(blob, offset)
-    key, offset = _read_u16_len(blob, offset)
+    stem_prefix, offset = _read_u16_len(blob, offset, max_size=MAX_STEM_PREFIX_BYTES)
+    key, offset = _read_u16_len(blob, offset, max_size=MAX_KEY_BYTES)
     value, offset = _read_exact(blob, offset, 32)
-    proof_blob, offset = _read_u32_len(blob, offset)
+    proof_blob, offset = _read_u32_len(blob, offset, max_size=MAX_PROOF_BLOB_BYTES)
     packet_commitment, offset = _read_exact(blob, offset, 32)
     if offset != len(blob):
         raise ValueError("truncated payload")
@@ -991,6 +1070,8 @@ def decode_bucket_manifest_v1(blob: bytes) -> BucketManifest:
     bucket_id_raw, offset = _read_exact(blob, offset, 4)
     packet_count_raw, offset = _read_exact(blob, offset, 4)
     packet_count = int.from_bytes(packet_count_raw, "big")
+    if packet_count > MAX_MANIFEST_PACKET_COUNT:
+        raise ValueError("packet_count exceeds configured maximum")
 
     commitments: list[bytes] = []
     for _ in range(packet_count):

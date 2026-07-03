@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .constants import STEM_SUBTREE_WIDTH
 from .stem_subscription import (
     LocalVerificationResult,
     StemWitnessPacket,
@@ -18,8 +19,6 @@ from .stem_subscription import (
     verify_witness_packet,
 )
 from .tree import MerkleProof, verify_proof
-from .constants import STEM_SUBTREE_WIDTH
-
 
 METHOD_GET_VERIFIED_PROOF = "eth_getVerifiedProof"
 METHOD_GET_STEM_WITNESS = "eth_getStemWitness"
@@ -28,6 +27,8 @@ METHOD_GET_VERIFIED_STATE = "eth_getVerifiedState"
 WIRE_VERSION = "pbt-verified-rpc-v1"
 JSONRPC_VERSION = "2.0"
 MAX_PROOF_PATH_LENGTH = 4096
+MAX_PACKET_WIRE_BYTES = 262144
+MAX_U64 = (1 << 64) - 1
 
 # Minimal protocol-level JSON-RPC error codes used by this companion layer.
 ERR_INVALID_REQUEST = -32600
@@ -52,7 +53,7 @@ def _validate_jsonrpc_id(request_id: int | str | None, field_name: str = "id") -
         raise ValueError(f"{field_name} must be string, integer, or null")
 
 
-def _hex_to_bytes(value: str, field_name: str) -> bytes:
+def _hex_to_bytes(value: str, field_name: str, max_bytes: int | None = None) -> bytes:
     if not isinstance(value, str):
         raise ValueError(f"{field_name} must be a hex string")
     if not value.startswith("0x"):
@@ -60,6 +61,8 @@ def _hex_to_bytes(value: str, field_name: str) -> bytes:
     body = value[2:]
     if len(body) % 2 != 0:
         raise ValueError(f"{field_name} has odd-length hex body")
+    if max_bytes is not None and (len(body) // 2) > max_bytes:
+        raise ValueError(f"{field_name} exceeds maximum supported byte length")
     try:
         return bytes.fromhex(body)
     except ValueError as exc:
@@ -72,8 +75,8 @@ def _require_len(value: bytes, expected: int, field_name: str) -> None:
 
 
 def _u64_hex(value: int) -> str:
-    if value < 0:
-        raise ValueError("numeric field must be non-negative")
+    if value < 0 or value > MAX_U64:
+        raise ValueError("numeric field must fit in u64")
     return hex(value)
 
 
@@ -88,6 +91,8 @@ def _parse_u64_hex(value: str, field_name: str) -> int:
         raise ValueError(f"{field_name} must be a valid hex integer") from exc
     if parsed < 0:
         raise ValueError(f"{field_name} must be non-negative")
+    if parsed > MAX_U64:
+        raise ValueError(f"{field_name} exceeds u64 range")
     return parsed
 
 
@@ -326,6 +331,8 @@ def make_eth_getVerifiedProof_result(
     proof: MerkleProof,
 ) -> dict[str, Any]:
     """Create a canonical result payload for `eth_getVerifiedProof`."""
+    if not isinstance(provider, str) or not provider:
+        raise ValueError("provider must be a non-empty string")
     _require_len(block_hash, 32, "block_hash")
     _require_len(state_root, 32, "state_root")
     _require_len(value, 32, "value")
@@ -470,8 +477,12 @@ def make_eth_getStemWitness_result(
     packet: StemWitnessPacket,
 ) -> dict[str, Any]:
     """Create a canonical result payload for `eth_getStemWitness`."""
+    if not isinstance(provider, str) or not provider:
+        raise ValueError("provider must be a non-empty string")
     _require_len(block_hash, 32, "block_hash")
     packet_wire = encode_stem_witness_packet_v1(packet)
+    if len(packet_wire) > MAX_PACKET_WIRE_BYTES:
+        raise ValueError("packet wire exceeds maximum supported byte length")
 
     return {
         "version": WIRE_VERSION,
@@ -560,7 +571,11 @@ def parse_eth_getStemWitness_result(payload: dict[str, Any]) -> StemWitnessRpcRe
     block_number = _parse_u64_hex(block.get("number"), "block.number")
     block_hash = _hex_to_bytes(block.get("hash"), "block.hash")
     state_root = _hex_to_bytes(block.get("stateRoot"), "block.stateRoot")
-    packet_wire = _hex_to_bytes(stem_witness.get("packetWire"), "stemWitness.packetWire")
+    packet_wire = _hex_to_bytes(
+        stem_witness.get("packetWire"),
+        "stemWitness.packetWire",
+        max_bytes=MAX_PACKET_WIRE_BYTES,
+    )
 
     _require_len(block_hash, 32, "block.hash")
     _require_len(state_root, 32, "block.stateRoot")

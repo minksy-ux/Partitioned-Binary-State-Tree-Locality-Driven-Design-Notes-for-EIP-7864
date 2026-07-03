@@ -369,3 +369,35 @@ def test_stem_proof_alias_round_trip_and_verify():
 
     verified = verify_eth_getStemProof_result(result, expected_state_root=packet.block_root)
     assert verified.accepted
+
+
+def test_verified_proof_rejects_block_number_over_u64_range():
+    key, value, rh, proof = _build_tree_fixture()
+    payload = make_eth_getVerifiedProof_result(
+        provider="provider-a",
+        block_number=123,
+        block_hash=b"h" * 32,
+        state_root=rh,
+        key=key,
+        value=value,
+        proof=proof,
+    )
+    payload["block"]["number"] = "0x10000000000000000"
+
+    bad = verify_eth_getVerifiedProof_result(payload)
+    assert not bad.accepted
+    assert "malformed" in bad.reason
+
+
+def test_stem_witness_rejects_oversized_packet_wire_hex():
+    packet = _build_packet_fixture()
+    payload = make_eth_getStemWitness_result(
+        provider="provider-a",
+        block_hash=b"b" * 32,
+        packet=packet,
+    )
+
+    payload["stemWitness"]["packetWire"] = "0x" + ("ab" * 262145)
+    bad = verify_eth_getStemWitness_result(payload)
+    assert not bad.accepted
+    assert "malformed" in bad.reason

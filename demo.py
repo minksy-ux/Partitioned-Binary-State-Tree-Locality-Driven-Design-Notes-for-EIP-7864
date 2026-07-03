@@ -11,6 +11,7 @@ This script demonstrates:
 
 import sys
 import os
+from copy import deepcopy
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from pbt import (
@@ -33,6 +34,15 @@ from pbt import (
     measure_query_pattern_leakage,
     derive_ephemeral_state_lens,
     filter_packets_by_ephemeral_lens,
+    make_eth_getVerifiedProof_result,
+    verify_eth_getVerifiedProof_result,
+    make_eth_getStemWitness_result,
+    verify_eth_getStemWitness_result,
+    default_policy,
+    default_release_artifacts,
+    FormalVerificationDashboard,
+    ProvingWorkload,
+    compare_proving_profiles,
 )
 
 
@@ -319,6 +329,148 @@ def demo_private_fetch_with_fallback():
     assert result.accepted
 
 
+def _flip_last_hex_nibble(hex_value: str) -> str:
+    if not hex_value.startswith("0x") or len(hex_value) <= 2:
+        raise ValueError("expected 0x-prefixed hex string")
+    last = hex_value[-1]
+    return hex_value[:-1] + ("0" if last != "0" else "1")
+
+
+def demo_verified_rpc_wallet_status():
+    """Show verified/unverified wallet UI status transitions for verified-RPC."""
+    print("=" * 70)
+    print("DEMO 6: Verified-RPC Wallet Status Flow")
+    print("=" * 70)
+
+    address = bytes.fromhex("11" * 32)
+    key = get_tree_key_for_basic_data(address)
+    value = encode_basic_data(version=1, balance=1234, nonce=5, code_size=0)
+    root = insert(EmptyNode(), key, value)
+    trusted_root = root_hash(root)
+    proof = get_proof(root, key)
+
+    print("eth_getVerifiedProof status flow:")
+    print("  - UI status before local checks: UNVERIFIED")
+    payload = make_eth_getVerifiedProof_result(
+        provider="provider-a",
+        block_number=321,
+        block_hash=b"h" * 32,
+        state_root=trusted_root,
+        key=key,
+        value=value,
+        proof=proof,
+    )
+    verified = verify_eth_getVerifiedProof_result(payload, expected_state_root=trusted_root)
+    print(
+        f"  - UI status after local checks: {'VERIFIED' if verified.accepted else 'UNVERIFIED'} "
+        f"({verified.reason})"
+    )
+
+    tampered = deepcopy(payload)
+    tampered["state"]["value"] = "0xxyz"
+    rejected = verify_eth_getVerifiedProof_result(tampered, expected_state_root=trusted_root)
+    print(
+        f"  - UI status on malformed payload: {'VERIFIED' if rejected.accepted else 'UNVERIFIED'} "
+        f"({rejected.reason})"
+    )
+
+    packet = StemWitnessPacket(
+        epoch=2,
+        block_number=321,
+        block_root=trusted_root,
+        stem_prefix=key[:-1],
+        key=key,
+        value=value,
+        proof=proof,
+        bucket_id=7,
+    )
+    print("eth_getStemWitness status flow:")
+    print("  - UI status before local checks: UNVERIFIED")
+    stem_payload = make_eth_getStemWitness_result(
+        provider="provider-a",
+        block_hash=b"b" * 32,
+        packet=packet,
+    )
+    stem_verified = verify_eth_getStemWitness_result(
+        stem_payload,
+        expected_state_root=trusted_root,
+    )
+    print(
+        f"  - UI status after local checks: {'VERIFIED' if stem_verified.accepted else 'UNVERIFIED'} "
+        f"({stem_verified.reason})"
+    )
+
+    tampered_stem = deepcopy(stem_payload)
+    wire = tampered_stem["stemWitness"]["packetWire"]
+    tampered_stem["stemWitness"]["packetWire"] = _flip_last_hex_nibble(wire)
+    stem_rejected = verify_eth_getStemWitness_result(
+        tampered_stem,
+        expected_state_root=trusted_root,
+    )
+    print(
+        f"  - UI status on tampered witness: {'VERIFIED' if stem_rejected.accepted else 'UNVERIFIED'} "
+        f"({stem_rejected.reason})\n"
+    )
+    assert verified.accepted
+    assert stem_verified.accepted
+    assert not rejected.accepted
+    assert not stem_rejected.accepted
+
+
+def demo_formal_verification_dashboard():
+    """Show formal verification readiness dashboard output."""
+    print("=" * 70)
+    print("DEMO 7: Formal Verification Dashboard")
+    print("=" * 70)
+
+    artifacts = default_release_artifacts()
+    dashboard = FormalVerificationDashboard(default_policy())
+    snapshot = dashboard.build_snapshot(artifacts)
+    rendered = dashboard.render_markdown(snapshot, include_phone_user_story=True)
+
+    print(f"✓ Overall status: {snapshot.overall_status}")
+    print(
+        "✓ Required verified: "
+        f"{snapshot.required_fully_verified}/{snapshot.total_required}"
+    )
+    print("\nDashboard markdown preview:\n")
+    print(rendered)
+    print()
+    assert snapshot.overall_status == "PASS"
+
+
+def demo_proving_profiles():
+    """Show circuit-cost and STARK execution profile comparisons."""
+    print("=" * 70)
+    print("DEMO 8: Circuit Cost And STARK-Friendly Profile Estimates")
+    print("=" * 70)
+
+    workload = ProvingWorkload(
+        internal_node_hashes=640,
+        stem_hashes=160,
+        auxiliary_hashes=40,
+    )
+    comparisons = compare_proving_profiles(workload, baseline_hash_id="keccak256")
+
+    print(
+        "Workload summary: "
+        f"internal={workload.internal_node_hashes}, "
+        f"stem={workload.stem_hashes}, "
+        f"aux={workload.auxiliary_hashes}, "
+        f"total_hashes={workload.total_hashes}"
+    )
+    print("Profile comparison (relative to keccak256 baseline):")
+    for item in comparisons:
+        print(
+            f"  - {item.hash_id}: "
+            f"constraints={item.total_constraints} "
+            f"({item.constraints_vs_baseline:.3f}x), "
+            f"trace_rows={item.total_trace_rows} "
+            f"({item.trace_rows_vs_baseline:.3f}x)"
+        )
+    print()
+
+
 if __name__ == "__main__":
     print("\n" + "=" * 70)
     print("PARTITIONED BINARY TREE REFERENCE IMPLEMENTATION DEMO")
@@ -330,6 +482,9 @@ if __name__ == "__main__":
         demo_updates()
         demo_locality()
         demo_private_fetch_with_fallback()
+        demo_verified_rpc_wallet_status()
+        demo_formal_verification_dashboard()
+        demo_proving_profiles()
         
         print("=" * 70)
         print("✓ ALL DEMOS PASSED")

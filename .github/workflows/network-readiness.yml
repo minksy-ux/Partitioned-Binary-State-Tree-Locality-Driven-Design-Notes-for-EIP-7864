@@ -8,6 +8,8 @@ on:
 jobs:
   readiness:
     runs-on: ubuntu-latest
+    env:
+      PBT_RELEASE_MODE: ${{ (github.ref_name == 'main' || github.ref_name == 'master') && '1' || '0' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,13 +25,64 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest hypothesis
+          pip install .[dev]
 
       - name: Validate network readiness manifest
         run: python scripts/validate_network_readiness.py
 
       - name: Validate release notes policy
         run: python scripts/validate_release_notes.py
+
+      - name: Validate frozen vectors
+        run: python scripts/validate_frozen_vectors.py
+
+      - name: Run cross-client conformance
+        run: python scripts/run_cross_client_conformance.py
+
+      - name: Generate performance envelopes
+        run: python scripts/generate_performance_envelopes.py
+
+      - name: Validate API surface lock
+        run: python scripts/validate_api_surface.py
+
+      - name: Validate API release policy
+        run: python scripts/validate_api_release_policy.py
+
+      - name: Run rollback drill
+        run: python scripts/run_rollback_drill.py
+
+      - name: Run Ruff lint checks
+        run: |
+          ruff check \
+            pbt/hash.py \
+            pbt/minimal_verifier.py \
+            pbt/nodes.py \
+            pbt/stem_subscription.py \
+            pbt/tree.py \
+            pbt/verified_rpc.py \
+            scripts/run_cross_client_conformance.py \
+            scripts/validate_frozen_vectors.py \
+            scripts/update_vector_checksums.py \
+            scripts/validate_api_surface.py \
+            scripts/generate_performance_envelopes.py \
+            scripts/validate_api_release_policy.py \
+            scripts/run_rollback_drill.py \
+            scripts/generate_supply_chain_artifacts.py \
+            scripts/validate_supply_chain_artifacts.py
+
+      - name: Run Mypy type checks
+        run: |
+          mypy \
+            scripts/run_cross_client_conformance.py \
+            scripts/validate_frozen_vectors.py \
+            scripts/update_vector_checksums.py \
+            scripts/validate_api_surface.py \
+            scripts/generate_performance_envelopes.py \
+            scripts/validate_api_release_policy.py \
+            scripts/run_rollback_drill.py \
+            scripts/generate_supply_chain_artifacts.py \
+            scripts/validate_supply_chain_artifacts.py \
+            --follow-imports=skip
 
       - name: Run Python tests
         run: pytest -q
@@ -39,6 +92,12 @@ jobs:
 
       - name: Build release bundle
         run: bash pbt-rs/scripts/release_bundle.sh
+
+      - name: Generate supply chain artifacts
+        run: python scripts/generate_supply_chain_artifacts.py
+
+      - name: Validate supply chain artifacts
+        run: python scripts/validate_supply_chain_artifacts.py
 
       - name: Verify release artifacts
         run: python scripts/verify_release_artifacts.py

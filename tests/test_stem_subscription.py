@@ -240,6 +240,26 @@ def test_bundle_commitment_verification_round_trip():
     assert verify_witness_bundle(bundle)
 
 
+def test_decode_stem_witness_packet_rejects_oversized_packet_wire():
+    packet = _build_packet()
+    encoded = encode_stem_witness_packet_v1(packet)
+    oversized = encoded + (b"\x00" * (262145 - len(encoded)))
+    with pytest.raises(ValueError, match="packet wire exceeds configured maximum"):
+        decode_stem_witness_packet_v1(oversized)
+
+
+def test_decode_bucket_manifest_rejects_excessive_packet_count():
+    # version + epoch + bucket_id + packet_count
+    blob = (
+        b"\x01"
+        + (0).to_bytes(8, "big")
+        + (0).to_bytes(4, "big")
+        + (16385).to_bytes(4, "big")
+    )
+    with pytest.raises(ValueError, match="packet_count exceeds configured maximum"):
+        decode_bucket_manifest_v1(blob)
+
+
 def test_sla_registry_stake_and_slash():
     reg = OptionalSLARegistry()
     pos = reg.stake(wallet_id=b"w", provider_id=b"p", bond_amount=100)
@@ -321,6 +341,98 @@ def test_partially_stateless_client_caches_verified_stem_values():
     result = client.verify_and_cache_packet(packet)
     assert result.accepted
     assert client.cached_value(packet.key) == packet.value
+
+
+def _build_packet_with_stem_marker(marker: int) -> StemWitnessPacket:
+    key = bytes([0]) + bytes([marker] * 32) + bytes([1])
+    value = marker.to_bytes(32, "big")
+    root = insert(EmptyNode(), key, value)
+    proof = get_proof(root, key)
+    return StemWitnessPacket(
+        epoch=1,
+        block_number=100,
+        block_root=root_hash(root),
+        stem_prefix=key[:-1],
+        key=key,
+        value=value,
+        proof=proof,
+        bucket_id=3,
+    )
+
+
+def test_partially_stateless_hot_stem_cache_uses_lru_eviction():
+    p1 = _build_packet_with_stem_marker(0x11)
+    p2 = _build_packet_with_stem_marker(0x22)
+    p3 = _build_packet_with_stem_marker(0x33)
+
+    client = PartiallyStatelessStemClient(verified_block_root=p1.block_root, max_cached_stems=2)
+    assert client.verify_and_cache_packet(p1).accepted
+
+    client.set_verified_block_root(p2.block_root, clear_cache=False)
+    assert client.verify_and_cache_packet(p2).accepted
+
+    client.set_verified_block_root(p3.block_root, clear_cache=False)
+    assert client.verify_and_cache_packet(p3).accepted
+
+    # p1 should be evicted as the least-recently-used stem.
+    client.set_verified_block_root(p1.block_root, clear_cache=False)
+    assert client.cached_value(p1.key) is None
+
+    client.set_verified_block_root(p2.block_root, clear_cache=False)
+    assert client.cached_value(p2.key) == p2.value
+    client.set_verified_block_root(p3.block_root, clear_cache=False)
+    assert client.cached_value(p3.key) == p3.value
+
+
+def test_partially_stateless_hot_stem_cache_read_refreshes_lru_order():
+    p1 = _build_packet_with_stem_marker(0x44)
+    p2 = _build_packet_with_stem_marker(0x55)
+    p3 = _build_packet_with_stem_marker(0x66)
+
+    client = PartiallyStatelessStemClient(verified_block_root=p1.block_root, max_cached_stems=2)
+    assert client.verify_and_cache_packet(p1).accepted
+
+    client.set_verified_block_root(p2.block_root, clear_cache=False)
+    assert client.verify_and_cache_packet(p2).accepted
+
+    # Touch p1 so p2 becomes least-recently-used.
+    client.set_verified_block_root(p1.block_root, clear_cache=False)
+    assert client.cached_value(p1.key) == p1.value
+
+    client.set_verified_block_root(p3.block_root, clear_cache=False)
+    assert client.verify_and_cache_packet(p3).accepted
+
+    # p2 should be evicted; p1 should remain due to refresh.
+    client.set_verified_block_root(p2.block_root, clear_cache=False)
+    assert client.cached_value(p2.key) is None
+    client.set_verified_block_root(p1.block_root, clear_cache=False)
+    assert client.cached_value(p1.key) == p1.value
+
+
+def test_partially_stateless_cache_clears_on_root_rotation_by_default():
+    packet = _build_packet()
+    client = PartiallyStatelessStemClient(verified_block_root=packet.block_root)
+    assert client.verify_and_cache_packet(packet).accepted
+    assert client.cached_value(packet.key) == packet.value
+
+    client.set_verified_block_root(b"z" * 32)
+    assert client.cached_value(packet.key) is None
+
+
+def test_partially_stateless_cache_stats_track_hit_and_miss():
+    packet = _build_packet()
+    client = PartiallyStatelessStemClient(verified_block_root=packet.block_root)
+    assert client.verify_and_cache_packet(packet).accepted
+
+    assert client.cached_value(packet.key) == packet.value
+    missing_key = bytes([0]) + bytes([0xFE] * 32) + bytes([1])
+    assert client.cached_value(missing_key) is None
+
+    stats = client.cache_stats()
+    assert stats["cache_hits"] == 1
+    assert stats["cache_misses"] == 1
+    assert stats["cached_stems"] == 1
+    assert stats["max_cached_stems"] == 128
 
 
 def test_reserved_metadata_packet_detection():

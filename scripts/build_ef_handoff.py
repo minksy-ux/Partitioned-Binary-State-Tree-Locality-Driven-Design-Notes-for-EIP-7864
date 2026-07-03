@@ -6,9 +6,11 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
@@ -29,18 +31,23 @@ def run(cmd: list[str]) -> None:
 
 
 def ensure_release_bundle() -> None:
-    run(["python", "scripts/validate_network_readiness.py"])
-    run(["python", "scripts/validate_release_notes.py"])
+    python = sys.executable
+    run([python, "scripts/validate_network_readiness.py"])
+    run([python, "scripts/validate_release_notes.py"])
     run(["bash", "pbt-rs/scripts/release_bundle.sh"])
-    run(["python", "scripts/verify_release_artifacts.py"])
+    run([python, "scripts/generate_supply_chain_artifacts.py"])
+    run([python, "scripts/verify_release_artifacts.py"])
 
 
-def read_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
+def read_json(path: Path) -> dict[str, Any]:
+    return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
 
 
 def git(cmd: list[str]) -> str:
-    out = subprocess.check_output(["git", *cmd], cwd=ROOT)
+    try:
+        out = subprocess.check_output(["git", *cmd], cwd=ROOT)
+    except Exception:
+        return "unknown"
     return out.decode("utf-8").strip()
 
 
@@ -65,7 +72,9 @@ def build_manifest() -> dict:
             "commit": git(["rev-parse", "HEAD"]),
         },
         "readiness": {
-            "production_eligible": readiness.get("release_decision", {}).get("production_eligible", False),
+            "production_eligible": readiness.get("release_decision", {}).get(
+                "production_eligible", False
+            ),
             "blocking_gates": blocking,
             "release_notes_path": "RELEASE_NOTES.md",
             "handoff_doc_path": "EF_NETWORK_HANDOFF.md",
@@ -108,7 +117,8 @@ def write_quickstart() -> None:
 
 ## Promotion policy
 
-production_eligible MUST remain false until external audit and multi-client conformance gates are complete or waived.
+production_eligible MUST only be true when all readiness gates are complete
+or waived and release artifacts are verified.
 """,
         encoding="utf-8",
     )

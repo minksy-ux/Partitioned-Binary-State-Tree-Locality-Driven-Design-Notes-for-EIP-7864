@@ -6,20 +6,28 @@ Provides interactive commands to build, inspect, and verify PBT operations.
 
 Usage:
   python cli.py
+    python cli.py rpc_demo
 """
 
 import sys
 import os
+from copy import deepcopy
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from pbt import (
-    EmptyNode, InternalNode, StemNode,
+    EmptyNode, StemNode,
     insert, get, delete, root_hash, get_proof, verify_proof,
-    get_tree_key_for_basic_data, get_tree_key_for_storage_slot, 
-    get_tree_key_for_code_chunk, encode_basic_data,
-    EMPTY_VALUE, STEM_SUBTREE_WIDTH,
+    get_tree_key_for_basic_data, encode_basic_data,
+    EMPTY_VALUE,
+    StemWitnessPacket,
+    make_eth_getVerifiedProof_result,
+    verify_eth_getVerifiedProof_result,
+    make_eth_getStemWitness_result,
+    verify_eth_getStemWitness_result,
+    default_policy,
+    default_release_artifacts,
+    FormalVerificationDashboard,
 )
-from pbt.tree import split_key
 
 
 class PBTSession:
@@ -29,6 +37,18 @@ class PBTSession:
         self.root = EmptyNode()
         self.address = bytes(32)  # default zero address
         self.recent_proofs = {}
+
+    @staticmethod
+    def _parse_hex_arg(value: str, field_name: str, expected_len: int | None = None) -> bytes:
+        try:
+            parsed = bytes.fromhex(value)
+        except ValueError as exc:
+            raise ValueError(f"{field_name} must be valid hex") from exc
+        if expected_len is not None and len(parsed) != expected_len:
+            raise ValueError(
+                f"{field_name} must be {expected_len} bytes ({expected_len * 2} hex chars)"
+            )
+        return parsed
     
     def help(self):
         """Print help."""
@@ -44,6 +64,8 @@ PBT CLI Commands:
   info              - show tree statistics
   proof <key>       - generate proof for key
   verify <key>      - verify proof for key
+    rpc_demo          - run verified-RPC wallet-status simulation
+    formal_dashboard  - print formal verification readiness dashboard
   proof_list        - show recent proofs
   quit / exit       - exit the CLI
 
@@ -70,14 +92,10 @@ Example session:
             print(f"Current address: {self.address.hex()}")
             return
         try:
-            self.address = bytes.fromhex(args[0])
-            if len(self.address) != 32:
-                print("✗ Address must be 32 bytes (64 hex chars)")
-                self.address = bytes(32)
-                return
+            self.address = self._parse_hex_arg(args[0], "address", expected_len=32)
             print(f"✓ Address set to {self.address.hex()[:16]}...")
         except ValueError:
-            print("✗ Invalid hex string")
+            print("✗ Address must be valid 32-byte hex")
     
     def cmd_set(self, args):
         """Insert a key-value pair."""
@@ -85,11 +103,8 @@ Example session:
             print("Usage: set <key> <value> (as hex)")
             return
         try:
-            key = bytes.fromhex(args[0])
-            value = bytes.fromhex(args[1])
-            if len(value) != 32:
-                print("✗ Value must be 32 bytes (64 hex chars)")
-                return
+            key = self._parse_hex_arg(args[0], "key")
+            value = self._parse_hex_arg(args[1], "value", expected_len=32)
             self.root = insert(self.root, key, value)
             print(f"✓ Inserted {key.hex()[:16]}... = {value.hex()[:16]}...")
         except ValueError as e:
@@ -101,7 +116,7 @@ Example session:
             print("Usage: get <key> (as hex)")
             return
         try:
-            key = bytes.fromhex(args[0])
+            key = self._parse_hex_arg(args[0], "key")
             value = get(self.root, key)
             if value == EMPTY_VALUE:
                 print(f"✗ Key not found (returned EMPTY_VALUE)")
@@ -116,7 +131,7 @@ Example session:
             print("Usage: del <key> (as hex)")
             return
         try:
-            key = bytes.fromhex(args[0])
+            key = self._parse_hex_arg(args[0], "key")
             self.root = delete(self.root, key)
             print(f"✓ Deleted {key.hex()[:16]}...")
         except ValueError as e:
@@ -154,7 +169,7 @@ Example session:
             print("Usage: proof <key> (as hex)")
             return
         try:
-            key = bytes.fromhex(args[0])
+            key = self._parse_hex_arg(args[0], "key")
             proof = get_proof(self.root, key)
             self.recent_proofs[key.hex()] = proof
             print(f"✓ Generated proof for {key.hex()[:16]}...")
@@ -172,8 +187,8 @@ Example session:
             print("Usage: verify <key> (as hex)")
             return
         try:
-            key_hex = args[0]
-            key = bytes.fromhex(key_hex)
+            key = self._parse_hex_arg(args[0], "key")
+            key_hex = key.hex()
             if key_hex not in self.recent_proofs:
                 print(f"✗ No proof stored for {key_hex[:16]}...")
                 print(f"   Use 'proof <key>' first.")
@@ -192,6 +207,97 @@ Example session:
             return
         for key_hex, proof in self.recent_proofs.items():
             print(f"  {key_hex[:16]}... (depth={len(proof.path_siblings)})")
+
+    @staticmethod
+    def _flip_last_hex_nibble(hex_value: str) -> str:
+        if not hex_value.startswith("0x") or len(hex_value) <= 2:
+            raise ValueError("expected 0x-prefixed hex string")
+        last = hex_value[-1]
+        return hex_value[:-1] + ("0" if last != "0" else "1")
+
+    def cmd_rpc_demo(self, args):
+        """Run a wallet-like verified/unverified status simulation."""
+        key = get_tree_key_for_basic_data(self.address)
+        value = encode_basic_data(version=1, balance=1000, nonce=7, code_size=0)
+        demo_root = insert(EmptyNode(), key, value)
+        trusted_root = root_hash(demo_root)
+        proof = get_proof(demo_root, key)
+
+        print("Wallet status flow for eth_getVerifiedProof")
+        print("  - status: UNVERIFIED (response received)")
+        verified_payload = make_eth_getVerifiedProof_result(
+            provider="provider-a",
+            block_number=123,
+            block_hash=b"h" * 32,
+            state_root=trusted_root,
+            key=key,
+            value=value,
+            proof=proof,
+        )
+        verify_ok = verify_eth_getVerifiedProof_result(
+            verified_payload,
+            expected_state_root=trusted_root,
+        )
+        print(
+            f"  - status: {'VERIFIED' if verify_ok.accepted else 'UNVERIFIED'} "
+            f"({verify_ok.reason})"
+        )
+
+        bad_proof_payload = deepcopy(verified_payload)
+        bad_proof_payload["state"]["value"] = "0xxyz"
+        verify_bad = verify_eth_getVerifiedProof_result(
+            bad_proof_payload,
+            expected_state_root=trusted_root,
+        )
+        print(
+            f"  - tampered payload: {'VERIFIED' if verify_bad.accepted else 'UNVERIFIED'} "
+            f"({verify_bad.reason})"
+        )
+
+        packet = StemWitnessPacket(
+            epoch=1,
+            block_number=123,
+            block_root=trusted_root,
+            stem_prefix=key[:-1],
+            key=key,
+            value=value,
+            proof=proof,
+            bucket_id=2,
+        )
+        print("Wallet status flow for eth_getStemWitness")
+        print("  - status: UNVERIFIED (response received)")
+        stem_payload = make_eth_getStemWitness_result(
+            provider="provider-a",
+            block_hash=b"b" * 32,
+            packet=packet,
+        )
+        stem_ok = verify_eth_getStemWitness_result(
+            stem_payload,
+            expected_state_root=trusted_root,
+        )
+        print(
+            f"  - status: {'VERIFIED' if stem_ok.accepted else 'UNVERIFIED'} "
+            f"({stem_ok.reason})"
+        )
+
+        bad_stem_payload = deepcopy(stem_payload)
+        wire = bad_stem_payload["stemWitness"]["packetWire"]
+        bad_stem_payload["stemWitness"]["packetWire"] = self._flip_last_hex_nibble(wire)
+        stem_bad = verify_eth_getStemWitness_result(
+            bad_stem_payload,
+            expected_state_root=trusted_root,
+        )
+        print(
+            f"  - tampered payload: {'VERIFIED' if stem_bad.accepted else 'UNVERIFIED'} "
+            f"({stem_bad.reason})"
+        )
+
+    def cmd_formal_dashboard(self, args):
+        """Print a formal verification dashboard snapshot."""
+        artifacts = default_release_artifacts()
+        dashboard = FormalVerificationDashboard(default_policy())
+        snapshot = dashboard.build_snapshot(artifacts)
+        print(dashboard.render_markdown(snapshot, include_phone_user_story=True))
     
     def process_command(self, line):
         """Process a single command."""
@@ -213,6 +319,8 @@ Example session:
             'info': self.cmd_info,
             'proof': self.cmd_proof,
             'verify': self.cmd_verify,
+            'rpc_demo': self.cmd_rpc_demo,
+            'formal_dashboard': self.cmd_formal_dashboard,
             'proof_list': self.cmd_proof_list,
         }
         
@@ -248,4 +356,20 @@ Example session:
 
 if __name__ == "__main__":
     session = PBTSession()
-    session.run()
+    one_shot_commands = {
+        "rpc_demo": session.cmd_rpc_demo,
+        "formal_dashboard": session.cmd_formal_dashboard,
+    }
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1].strip().lower()
+        if cmd in one_shot_commands:
+            one_shot_commands[cmd]([])
+        elif cmd in ("help", "-h", "--help"):
+            session.help()
+        else:
+            print(f"Unknown one-shot command '{cmd}'.")
+            print("Supported one-shot commands: rpc_demo, formal_dashboard")
+            print("Use 'python cli.py' for interactive mode.")
+            sys.exit(2)
+    else:
+        session.run()

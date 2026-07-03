@@ -12,13 +12,11 @@ The insertion and deletion algorithms are normative per the EIP.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
-from .constants import STEM_SUBTREE_WIDTH, EMPTY_VALUE
+from .constants import EMPTY_VALUE, STEM_SUBTREE_WIDTH
 from .hash import tree_hash
-from .nodes import EmptyNode, InternalNode, StemNode, Node
-
+from .nodes import STEM_HASH_DOMAIN, EmptyNode, InternalNode, Node, StemNode
 
 # ---------------------------------------------------------------------------
 # Bit helpers
@@ -268,6 +266,22 @@ class MerkleProof:
     path_bits: list[int]
 
 
+@dataclass
+class BatchMerkleProof:
+    """Canonical multi-key proof bundle.
+
+    keys are stored in lexicographic order and map 1:1 to proofs.
+    deduplicated_siblings are sorted lexicographically to provide a
+    deterministic shared-sibling commitment surface for batch transports.
+    """
+
+    keys: list[bytes]
+    values: list[bytes]
+    proofs: list[MerkleProof]
+    deduplicated_siblings: list[bytes]
+    key_to_proof_index: list[int]
+
+
 def get_proof(root: Node, key: bytes) -> MerkleProof:
     """
     Generate a Merkle proof for `key` in the tree rooted at `root`.
@@ -315,7 +329,7 @@ def _hash_stem(stem_prefix: bytes, values: list[bytes]) -> bytes:
     This function is the canonical commitment to the stem's contents and
     MUST be used both in node_hash() and in proof verification.
     """
-    payload = stem_prefix + b"".join(values)
+    payload = STEM_HASH_DOMAIN + stem_prefix + b"".join(values)
     return tree_hash(payload)
 
 
@@ -350,3 +364,62 @@ def verify_proof(rh: bytes, proof: MerkleProof) -> bool:
             current = tree_hash(sibling + current)
 
     return current == rh
+
+
+def get_multi_proof(root: Node, keys: list[bytes]) -> BatchMerkleProof:
+    """Build a canonical batch proof for multiple keys.
+
+    Keys are deduplicated then sorted lexicographically to ensure deterministic
+    output across implementations.
+    """
+    ordered_keys = sorted(set(keys))
+    proofs: list[MerkleProof] = []
+    values: list[bytes] = []
+    sibling_set: set[bytes] = set()
+
+    for key in ordered_keys:
+        proof = get_proof(root, key)
+        proofs.append(proof)
+        values.append(proof.value)
+        sibling_set.update(proof.path_siblings)
+
+    return BatchMerkleProof(
+        keys=ordered_keys,
+        values=values,
+        proofs=proofs,
+        deduplicated_siblings=sorted(sibling_set),
+        key_to_proof_index=list(range(len(ordered_keys))),
+    )
+
+
+def verify_multi_proof(rh: bytes, batch_proof: BatchMerkleProof) -> bool:
+    """Verify a canonical batch proof.
+
+    Validation rules:
+    - key ordering must be canonical (lexicographic ascending, unique),
+    - vectors must have aligned lengths,
+    - each constituent MerkleProof must verify against the same root.
+    """
+    if batch_proof.keys != sorted(set(batch_proof.keys)):
+        return False
+    n = len(batch_proof.keys)
+    if len(batch_proof.values) != n:
+        return False
+    if len(batch_proof.proofs) != n:
+        return False
+    if len(batch_proof.key_to_proof_index) != n:
+        return False
+    if batch_proof.key_to_proof_index != list(range(n)):
+        return False
+    if batch_proof.deduplicated_siblings != sorted(batch_proof.deduplicated_siblings):
+        return False
+
+    for i in range(n):
+        proof = batch_proof.proofs[i]
+        if proof.key != batch_proof.keys[i]:
+            return False
+        if proof.value != batch_proof.values[i]:
+            return False
+        if not verify_proof(rh, proof):
+            return False
+    return True

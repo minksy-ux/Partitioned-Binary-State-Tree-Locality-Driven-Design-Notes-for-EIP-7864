@@ -26,6 +26,9 @@ from pbt.tree import (
     root_hash,
     get_proof,
     verify_proof,
+    get_multi_proof,
+    verify_multi_proof,
+    BatchMerkleProof,
     split_key,
     _bit_at,
     MerkleProof,
@@ -329,6 +332,50 @@ def test_tampered_sibling_fails_verification():
         path_bits=proof.path_bits,
     )
     assert not verify_proof(rh, tampered)
+
+
+def test_multi_proof_round_trip_for_mixed_keys():
+    root, kvs = _build_tree()
+    rh = root_hash(root)
+    keys = [kvs[0][0], kvs[3][0], kvs[-1][0], _key(0, ADDR_A, 99)]
+    batch = get_multi_proof(root, keys)
+
+    assert verify_multi_proof(rh, batch)
+    assert batch.keys == sorted(set(keys))
+
+
+def test_multi_proof_rejects_non_canonical_ordering():
+    root, kvs = _build_tree()
+    rh = root_hash(root)
+    keys = [kvs[0][0], kvs[1][0], kvs[2][0]]
+    batch = get_multi_proof(root, keys)
+
+    bad = BatchMerkleProof(
+        keys=list(reversed(batch.keys)),
+        values=list(reversed(batch.values)),
+        proofs=list(reversed(batch.proofs)),
+        deduplicated_siblings=batch.deduplicated_siblings,
+        key_to_proof_index=batch.key_to_proof_index,
+    )
+    assert not verify_multi_proof(rh, bad)
+
+
+def test_multi_proof_rejects_tampered_value_alignment():
+    root, kvs = _build_tree()
+    rh = root_hash(root)
+    keys = [kvs[0][0], kvs[1][0]]
+    batch = get_multi_proof(root, keys)
+
+    tampered_values = list(batch.values)
+    tampered_values[0] = _val(123456)
+    bad = BatchMerkleProof(
+        keys=batch.keys,
+        values=tampered_values,
+        proofs=batch.proofs,
+        deduplicated_siblings=batch.deduplicated_siblings,
+        key_to_proof_index=batch.key_to_proof_index,
+    )
+    assert not verify_multi_proof(rh, bad)
 
 
 def test_wrong_root_fails_verification():

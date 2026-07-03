@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "network_readiness_release_bundle",
+  "generated_at_utc": "2026-07-03T14:25:58Z",
+  "git_commit": "7df4fd9e573e365d30a81f9c7e418061ced6ec18",
+  "artifacts": [
+    {
+      "path": "dist/pbt-rs-source.tar.gz",
+      "sha256": "a84dd39d65ce267b145fcc23520f8ac9661b4cc3521bbe68a61c04b59ffcfb25"
+    },
+    {
+      "path": "dist/pbt-rs-sha256.txt",
+      "sha256": "01312be8302fe2240b8c6ac4c860c08a41ecdf7dcc966354040cf46d98e308d9"
+    },
+    {
+      "path": "dist/network-readiness-summary.txt",
+      "sha256": "c70a7ae5ef6e48e56ddd48e8fa515a8a56b706c78259e01841aafbad7247faa4"
+    }
+  ],
+  "signing": {
+    "method": "gpg_detached_ascii",
+    "manifest_signature": "dist/release-manifest.json.sig",
+    "bundle_signature": "dist/pbt-rs-source.tar.gz.sig"
+  }
+}

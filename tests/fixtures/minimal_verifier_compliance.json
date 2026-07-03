@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "cases": [
+    {
+      "id": "mid_range_pass",
+      "target_device_class": "Mid-range Phone (2026)",
+      "measurement": {
+        "device_class": "Mid-range Phone (2026)",
+        "ram_mb": 420,
+        "sync_seconds": 20.0,
+        "verify_ms_per_block": 1400.0
+      },
+      "expected": {
+        "within_budget": true,
+        "failures": []
+      }
+    },
+    {
+      "id": "high_end_fail_verify",
+      "target_device_class": "High-end Phone",
+      "measurement": {
+        "device_class": "High-end Phone",
+        "ram_mb": 700,
+        "sync_seconds": 8.0,
+        "verify_ms_per_block": 900.0
+      },
+      "expected": {
+        "within_budget": false,
+        "failures": ["verify"]
+      }
+    },
+    {
+      "id": "device_mismatch_fail",
+      "target_device_class": "High-end Phone",
+      "measurement": {
+        "device_class": "Mid-range Phone (2026)",
+        "ram_mb": 300,
+        "sync_seconds": 5.0,
+        "verify_ms_per_block": 300.0
+      },
+      "expected": {
+        "within_budget": false,
+        "failures": ["device_class"]
+      }
+    }
+  ]
+}

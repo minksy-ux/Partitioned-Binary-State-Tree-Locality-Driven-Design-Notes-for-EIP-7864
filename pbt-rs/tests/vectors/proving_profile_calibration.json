@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "records": [
+    {
+      "hash_id": "blake3",
+      "circuit_constraints_per_hash": 5200,
+      "stark_trace_rows_per_hash": 3000,
+      "benchmark_suite": "pbt-rs core_ops",
+      "benchmark_commit": "7df4fd9e573e365d30a81f9c7e418061ced6ec18",
+      "benchmark_command": "cargo bench --manifest-path pbt-rs/Cargo.toml --bench core_ops",
+      "measured_at_utc": "2026-07-03T02:00:00Z",
+      "sample_count": 10,
+      "notes": "published in dist/performance-envelopes.json with commit-pinned provenance"
+    },
+    {
+      "hash_id": "poseidon2",
+      "circuit_constraints_per_hash": 880,
+      "stark_trace_rows_per_hash": 650,
+      "benchmark_suite": "pbt-rs core_ops",
+      "benchmark_commit": "7df4fd9e573e365d30a81f9c7e418061ced6ec18",
+      "benchmark_command": "cargo bench --manifest-path pbt-rs/Cargo.toml --bench core_ops",
+      "measured_at_utc": "2026-07-03T02:00:00Z",
+      "sample_count": 10,
+      "notes": "published in dist/performance-envelopes.json with commit-pinned provenance"
+    }
+  ]
+}

@@ -1,0 +1,319 @@
+Metadata-Version: 2.4
+Name: pbt-eip7864
+Version: 0.1.0
+Summary: Reference implementation of the Partitioned Binary Tree (EIP-7864)
+License: CC0-1.0
+Keywords: ethereum,state-tree,merkle,eip-7864
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: blake3>=1.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: hypothesis>=6.100; extra == "dev"
+Requires-Dist: ruff>=0.6.0; extra == "dev"
+Requires-Dist: mypy>=1.11.0; extra == "dev"
+
+# EIP-7864: Partitioned Binary State Tree
+
+## Network Handoff
+
+For Ethereum Foundation and client-team evaluation artifacts, release-bundle steps, and readiness boundaries, see [EF_NETWORK_HANDOFF.md](EF_NETWORK_HANDOFF.md).
+
+| Field | Value |
+|---|---|
+| EIP | 7864 |
+| Title | Partitioned Binary State Tree |
+| Status | Draft |
+| Type | Standards Track - Core |
+| Category | Core |
+| Created | 2026-07-02 |
+
+---
+
+## Abstract
+
+This EIP replaces Ethereum's hexary Merkle Patricia Trie (MPT) with a Partitioned Binary Tree (PBT): a strictly binary state tree over prefix-free keys with fixed 32-byte leaf values.
+
+PBT has two core layout primitives:
+
+- one-byte partitioning by `storage_type`, and
+- 256-leaf locality groups called stems.
+
+The result is deterministic structure, uniform proof mechanics, strong locality, and simpler verifier/circuit logic than MPT.
+
+This draft defines:
+
+- canonical tree shape,
+- key derivation and locality layout,
+- proof verification rules,
+- migration mechanics,
+- stem-aware gas hooks,
+- and a compliance-grade minimal verifier target for phone-class devices.
+
+Hash agility is preserved. The current reference supports `blake3`, `keccak256`, and optional `poseidon2` backends.
+
+---
+
+## Verification Thesis
+
+Ethereum should optimize first for independent verification by ordinary users.
+
+If users cannot cheaply verify the state they rely on, they are implicitly trusting infrastructure providers. That weakens user sovereignty and increases systemic centralization risk.
+
+PBT is designed to make local verification practical by default:
+
+- predictable proof structure,
+- deterministic canonical form,
+- no RLP/variable-arity trie complexity,
+- and locality that reduces repeated witness overhead.
+
+Verification is not an advanced mode. It is the correctness boundary.
+
+## Impact Thesis
+
+This proposal is not "just a new state tree." It is a practical re-centering of Ethereum around user-verifiable truth on consumer hardware.
+
+If successful, the outcome is:
+
+- fewer trust assumptions on centralized RPC,
+- better wallet correctness guarantees,
+- lower proving complexity for stateless and zk pipelines,
+- and cleaner extension paths for expiry/metadata.
+
+---
+
+## Design Goals
+
+1. Proofs SHOULD be predictable and verifier-simple.
+2. Adjacent accesses SHOULD share witness material through stem locality.
+3. Canonical structure MUST be deterministic for any `(key, value)` set.
+4. Tree shape MUST remain hash-agile.
+5. Reserved extension space MUST support expiry/metadata without proof-format breakage.
+
+---
+
+## Core Model
+
+### Node Types
+
+Implementations MUST use exactly these node types:
+
+- `EmptyNode`: explicit absent-subtree sentinel.
+- `InternalNode`: binary branch with left/right children.
+- `StemNode`: `(stem_prefix, values[256])`.
+
+`None` MUST NOT substitute for `EmptyNode`.
+
+### Key Shape
+
+Each key is:
+
+`bytes([storage_type]) || tree_position || bytes([subindex])`
+
+where:
+
+- `storage_type` is one byte,
+- `tree_position` is prefix-free bytes,
+- `subindex` is one byte (`0..255`).
+
+Keys with the same `(storage_type, tree_position)` share one stem with 256 leaf slots.
+
+### Partition Constants
+
+- `HEADER_SUBTREE = 0x00`
+- `CODE_SUBTREE = 0x01`
+- `STORAGE_SUBTREE = 0xff`
+
+### Locality Layout
+
+Header stem co-locates:
+
+- basic account data,
+- code hash,
+- first code chunks,
+- first storage slots.
+
+Overflow code/storage spill into additional stems in 256-slot pages.
+
+---
+
+## Minimal Viable Verifier Spec (Compliance Target)
+
+A compliant phone-grade verifier MUST implement all of the following.
+
+### 1) Header Verification
+
+Given a block header candidate and trusted parent/finality anchor, verifier MUST:
+
+- verify canonical header linkage and parent relation,
+- verify consensus-valid state root extraction from header,
+- reject headers with inconsistent ancestry or malformed root fields.
+
+Output: trusted `state_root` for proof checks.
+
+### 2) PBT Proof Verification
+
+Given trusted `state_root` and proof payload, verifier MUST:
+
+- parse proof payload using canonical bounds-checked format,
+- validate proof shape invariants (path-bit domain, length alignment, fixed-width values),
+- recompute stem commitment and branch path deterministically,
+- compare recomputed root against trusted `state_root`,
+- reject malformed, non-canonical, or root-mismatched proofs.
+
+### 3) Basic State Transition Replay
+
+For the supported transaction subset/profile, verifier MUST:
+
+- replay deterministic pre/post-state checks over referenced keys,
+- verify all reads are accompanied by valid proofs anchored to trusted pre-state root,
+- verify all writes produce a deterministic post-state root consistent with header claim,
+- reject incomplete witnesses or transitions that touch unproven state.
+
+This replay target is intentionally minimal: it is the compliance baseline for wallets/light clients, not a full execution client replacement.
+
+### 4) Resource Profile (Phone Grade)
+
+Conforming implementations SHOULD meet:
+
+- Mid-range phone target: `<= 512 MB`, `< 30s` sync setup, `< 2s` verify per block profile.
+- High-end phone target: `<= 1 GB`, `< 10s` sync setup, `< 500ms` verify per block profile.
+
+### 5) Compliance Decision
+
+A verifier is compliant only if all three functional checks pass:
+
+- header verification,
+- proof verification,
+- basic state transition replay.
+
+Any failure MUST produce explicit rejection.
+
+---
+
+## Hash Strategy And Proving Path
+
+PBT is hash-agile by structure. Consensus profiles pin one `hash_id` at activation.
+
+Supported identifiers in reference flows:
+
+- `blake3`
+- `keccak256`
+- `poseidon2` (when compatible backend is installed)
+
+### Strong Default Proving Direction
+
+PBT + Poseidon2 is intended to be the default proving path for all major zkEVMs and stateless clients.
+
+Rationale:
+
+- lower circuit/trace cost on hash-heavy workloads,
+- unchanged tree shape under hash replacement,
+- cleaner prover integration for recursive and stateless pipelines.
+
+Consensus activation of a Poseidon2 profile still requires audited parameter pinning and cross-client vectors.
+
+---
+
+## Canonical Operations
+
+### Insert/Update
+
+- `insert` and update follow deterministic binary descent by bit-prefix.
+- No extension nodes.
+- Structure MUST be canonical minimal for stem set.
+
+### Delete
+
+Setting leaf to `EMPTY_VALUE` is logical deletion.
+
+Implementations MUST collapse:
+
+- empty `StemNode` -> `EmptyNode`,
+- single-child `InternalNode` -> surviving child,
+
+to preserve canonical minimal structure.
+
+---
+
+## Proof Rules
+
+Single-key proof verification MUST:
+
+- bind `proof.key`, `proof.value`, `stem_values`, `path_siblings`, and `path_bits`,
+- domain-separate stem hashing,
+- enforce fixed-width/hash-size invariants,
+- reject non-canonical or malformed payloads.
+
+Multi-key/batch proofs MAY deduplicate shared structure but MUST be semantically equivalent to valid single-key checks.
+
+---
+
+## Gas And Migration
+
+### Stem-Aware Accounting
+
+Within one transaction:
+
+- first access to a stem pays branch-opening cost,
+- additional accesses in same stem pay lower per-chunk cost.
+
+### Migration
+
+Two-phase hard-fork migration:
+
+1. deterministic MPT -> PBT conversion block,
+2. post-fork writes target PBT only.
+
+Pre-fork MPT proofs remain historical only.
+
+---
+
+## Security Considerations
+
+- Pre-image resistance of active hash is mandatory.
+- Canonical-form enforcement is mandatory.
+- Witness completeness is mandatory for verified replay.
+- Unknown or mismatched `hash_id` MUST be rejected.
+- Decoder and proof parsing MUST enforce strict bounds.
+
+---
+
+## Optional Add-Ons (Non-Consensus)
+
+- Private stem retrieval / verified RPC delivery profiles.
+- Witness compression wrappers.
+- Expiry metadata evolution through reserved space.
+
+These are additive and MUST NOT alter canonical root derivation.
+
+---
+
+## Prototype Research Status
+
+The following are explicitly research/prototype tracks and are NOT consensus requirements in this EIP:
+
+- GeminiHash profiles (prototype/research only)
+- VectorFold proof modes (prototype/research only)
+
+They may inform future EIPs or profile upgrades after audit, vectors, and interoperability validation.
+
+---
+
+## Reference Implementation
+
+Reference modules are in [pbt/](pbt/) and tests in [tests/](tests/).
+
+The Python implementation is normative for behavior modeling in this repo. Rust reference implementation is provided for performance and interoperability workstreams.
+
+---
+
+## Closing Statement
+
+This EIP does not solve everything. But it makes the most important thing - independent verification - practical for normal people. That is worth optimizing for.
+
+---
+
+## Copyright
+
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
