@@ -5,6 +5,29 @@ pub enum HashFunction {
     Gemini,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GeminiField {
+    BabyBear,
+    Goldilocks64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GeminiParameters {
+    pub field: GeminiField,
+    pub rounds: u8,
+}
+
+impl Default for GeminiParameters {
+    fn default() -> Self {
+        Self {
+            field: GeminiField::Goldilocks64,
+            rounds: 10,
+        }
+    }
+}
+
+pub const GEMINI_SECURITY_WARNING: &str = "Engineering prototype only. Security claims are not established. Production deployments must use Blake3 or Poseidon2 until Gemini is independently reviewed and standardized.";
+
 fn blake3_hash(input: &[u8]) -> [u8; 32] {
     *blake3::hash(input).as_bytes()
 }
@@ -38,27 +61,40 @@ fn u64s_to_bytes32(value: [u64; 4]) -> [u8; 32] {
     out
 }
 
-fn gemini_mix_round(state: &mut [u64; 8], round: u64) {
-    const C0: u64 = 0x9E37_79B9_7F4A_7C15;
-    const C1: u64 = 0xBF58_476D_1CE4_E5B9;
-    const C2: u64 = 0x94D0_49BB_1331_11EB;
+fn gemini_mix_round(state: &mut [u64; 8], params: GeminiParameters, round: u64) {
+    let (c0, c1, c2): (u64, u64, u64) = match params.field {
+        GeminiField::BabyBear => (
+            0xA24B_1C62_7E77_99A5,
+            0xC3A5_C85C_97CB_3127,
+            0xB492_B66F_BE98_F273,
+        ),
+        GeminiField::Goldilocks64 => (
+            0x9E37_79B9_7F4A_7C15,
+            0xBF58_476D_1CE4_E5B9,
+            0x94D0_49BB_1331_11EB,
+        ),
+    };
 
     for (i, slot) in state.iter_mut().enumerate() {
-        let tweak = (round.wrapping_add(i as u64)).wrapping_mul(C0);
+        let tweak = (round.wrapping_add(i as u64)).wrapping_mul(c0);
         *slot = slot.wrapping_add(tweak).rotate_left((11 + i as u32) % 64);
     }
 
     for i in 0..4 {
         let a = state[i];
         let b = state[i + 4];
-        state[i] = a.wrapping_add(b).wrapping_mul(C1.rotate_left((i as u32) * 7));
-        state[i + 4] = (a ^ b).wrapping_add(C2.rotate_left((i as u32) * 9));
+        state[i] = a.wrapping_add(b).wrapping_mul(c1.rotate_left((i as u32) * 7));
+        state[i + 4] = (a ^ b).wrapping_add(c2.rotate_left((i as u32) * 9));
     }
 
     state.rotate_left(1);
 }
 
-fn gemini_hash_two(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
+pub fn gemini_compress_with_params(
+    left: &[u8; 32],
+    right: &[u8; 32],
+    params: GeminiParameters,
+) -> [u8; 32] {
     let l = bytes32_to_u64s(left);
     let r = bytes32_to_u64s(right);
     let mut state = [
@@ -73,8 +109,8 @@ fn gemini_hash_two(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     ];
 
     // Prototype binary-friendly compressor for PBT folding pipelines.
-    for round in 0..10 {
-        gemini_mix_round(&mut state, round);
+    for round in 0..u64::from(params.rounds) {
+        gemini_mix_round(&mut state, params, round);
     }
 
     let out = [
@@ -86,6 +122,10 @@ fn gemini_hash_two(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     u64s_to_bytes32(out)
 }
 
+pub fn gemini_compress(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
+    gemini_compress_with_params(left, right, GeminiParameters::default())
+}
+
 pub fn tree_hash(left: &[u8; 32], right: &[u8; 32], mode: HashFunction) -> [u8; 32] {
     match mode {
         HashFunction::Blake3 => {
@@ -95,7 +135,7 @@ pub fn tree_hash(left: &[u8; 32], right: &[u8; 32], mode: HashFunction) -> [u8; 
             *hasher.finalize().as_bytes()
         }
         HashFunction::Poseidon2 => poseidon2_hash_two(left, right),
-        HashFunction::Gemini => gemini_hash_two(left, right),
+        HashFunction::Gemini => gemini_compress(left, right),
     }
 }
 
@@ -116,7 +156,7 @@ pub fn hash_bytes(input: &[u8], mode: HashFunction) -> [u8; 32] {
             for part in input.chunks(32) {
                 chunk.fill(0);
                 chunk[..part.len()].copy_from_slice(part);
-                acc = gemini_hash_two(&acc, &chunk);
+                acc = gemini_compress(&acc, &chunk);
             }
             acc
         }
@@ -133,12 +173,12 @@ pub fn hash_stem(prefix: &[u8], values: &[[u8; 32]; 256], mode: HashFunction) ->
         while level.len() > 1 {
             let mut next = Vec::<[u8; 32]>::with_capacity(level.len() / 2);
             for pair in level.chunks_exact(2) {
-                next.push(gemini_hash_two(&pair[0], &pair[1]));
+                next.push(gemini_compress(&pair[0], &pair[1]));
             }
             level = next;
         }
 
-        return gemini_hash_two(&prefix_block, &level[0]);
+        return gemini_compress(&prefix_block, &level[0]);
     }
 
     let mut input = Vec::<u8>::with_capacity(12 + prefix.len() + values.len() * 32);

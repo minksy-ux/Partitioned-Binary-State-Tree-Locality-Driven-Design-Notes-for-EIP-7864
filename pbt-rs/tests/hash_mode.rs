@@ -1,4 +1,12 @@
-use pbt_rs::{hash_stem, tree_hash, HashFunction};
+use pbt_rs::{
+    gemini_compress,
+    gemini_compress_with_params,
+    hash_stem,
+    tree_hash,
+    GeminiField,
+    GeminiParameters,
+    HashFunction,
+};
 
 #[test]
 fn tree_hash_blake3_and_poseidon2_modes_return_32_bytes() {
@@ -34,4 +42,24 @@ fn hash_stem_supports_fixed_256_leaf_array() {
     assert_ne!(h1, h2);
     assert_ne!(h1, h3);
     assert_ne!(h2, h3);
+}
+
+#[test]
+fn gemini_compress_is_deterministic_and_field_tunable() {
+    let left = [0x3Cu8; 32];
+    let right = [0xC3u8; 32];
+
+    let d1 = gemini_compress(&left, &right);
+    let d2 = gemini_compress(&left, &right);
+    assert_eq!(d1, d2);
+
+    let babybear = gemini_compress_with_params(
+        &left,
+        &right,
+        GeminiParameters {
+            field: GeminiField::BabyBear,
+            rounds: 10,
+        },
+    );
+    assert_ne!(d1, babybear);
 }

@@ -32,7 +32,7 @@ fn vector_fold_proof_build_verify_and_roundtrip() {
     tree.insert(&k2, [0x20; 32]).expect("insert k2 should succeed");
     tree.insert(&k3, [0x30; 32]).expect("insert k3 should succeed");
 
-    let proof = build_vector_fold_proof(&tree, &[k1.clone(), k2.clone(), k3.clone()], ProofMode::GeminiHash)
+    let proof = build_vector_fold_proof(&tree, &k1, ProofMode::GeminiHash)
         .expect("vector fold proof should build");
 
     assert!(verify_vector_fold_proof(&proof));
@@ -58,12 +58,12 @@ fn vector_fold_proof_tamper_is_detected() {
     tree.insert(&k1, [0xAB; 32]).expect("insert k1 should succeed");
     tree.insert(&k2, [0xCD; 32]).expect("insert k2 should succeed");
 
-    let mut proof = build_vector_fold_proof(&tree, &[k1, k2], ProofMode::GeminiHash)
+    let mut proof = build_vector_fold_proof(&tree, &k1, ProofMode::GeminiHash)
         .expect("vector fold proof should build");
     assert!(verify_vector_fold_proof(&proof));
 
     if let Some(step) = proof.path_folds.get_mut(0) {
-        step.folded[0] ^= 1;
+        step.commitment[0] ^= 1;
     }
 
     assert!(!verify_vector_fold_proof(&proof));

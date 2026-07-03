@@ -16,7 +16,17 @@ pub use ethereum::{
     CODE_SUBTREE,
     STORAGE_SUBTREE,
 };
-pub use hash::{hash_stem, hash_bytes, tree_hash, HashFunction};
+pub use hash::{
+    gemini_compress,
+    gemini_compress_with_params,
+    hash_stem,
+    hash_bytes,
+    tree_hash,
+    GeminiField,
+    GeminiParameters,
+    HashFunction,
+    GEMINI_SECURITY_WARNING,
+};
 pub use migration::{migrate_account, MptAccount};
 pub use proof_format::{
     build_vector_fold_proof,
@@ -32,7 +42,6 @@ pub use proof_format::{
     verify_batch_proof_wasm,
     FoldStep,
     ProofMode,
-    StemProof,
     VectorFoldProof,
 };
 pub use tree::{
