@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0.0",
+  "project": "EIP-7864 Partitioned Binary State Tree",
+  "default_branch": "main",
+  "production_profile": {
+    "allowed_hash_modes": [
+      "blake3",
+      "poseidon2"
+    ],
+    "forbidden_hash_modes": [
+      "gemini"
+    ],
+    "allow_vectorfold": false,
+    "experimental_features_allowed": false
+  },
+  "experimental_profile": {
+    "allowed_hash_modes": [
+      "gemini",
+      "poseidon2"
+    ],
+    "allow_vectorfold": true,
+    "requires_explicit_opt_in": true
+  },
+  "gates": {
+    "crypto_review": {
+      "status": "pending",
+      "evidence": ""
+    },
+    "cross_client_conformance": {
+      "status": "pending",
+      "evidence": ""
+    },
+    "deterministic_vectors_frozen": {
+      "status": "in_progress",
+      "evidence": "pbt-rs/tests/vectors"
+    },
+    "performance_envelopes_published": {
+      "status": "pending",
+      "evidence": ""
+    },
+    "activation_and_rollback_plan": {
+      "status": "pending",
+      "evidence": ""
+    }
+  },
+  "release_decision": {
+    "production_eligible": false,
+    "notes": "Research/reference phase. Production remains blocked pending audits and multi-client sign-off."
+  }
+}

@@ -25,6 +25,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest hypothesis
 
+      - name: Validate network readiness manifest
+        run: python scripts/validate_network_readiness.py
+
       - name: Run Python tests
         run: pytest -q
 

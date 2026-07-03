@@ -44,9 +44,20 @@ This document defines what an Ethereum client team (or EF research/engineering t
 
 This repository now includes a CI gate (`.github/workflows/network-readiness.yml`) that:
 
+- validates `network-readiness.manifest.json` policy gates,
 - runs Python tests
 - runs Rust tests
 - builds a deterministic release bundle for EF/client review
+
+## Machine-Readable Readiness Manifest
+
+The file [network-readiness.manifest.json](network-readiness.manifest.json) is the source of truth for release policy.
+
+- It explicitly blocks Gemini and VectorFold from production profile use.
+- It tracks required promotion gates (audit, conformance, vectors, performance, activation/rollback).
+- CI validates the manifest through [scripts/validate_network_readiness.py](scripts/validate_network_readiness.py).
+
+To mark production eligibility, update gate statuses to `complete`/`waived` with evidence and set `release_decision.production_eligible` to `true`.
 
 ## Release Bundle
 
