@@ -29,6 +29,23 @@ This EIP replaces Ethereum's hexary Merkle Patricia Trie (MPT) with a Partitione
 
 The design is verification-first. It is intended to make local verification practical on consumer hardware, improve locality, reduce circuit complexity, preserve hash agility, and reserve extension space for pruning, expiry, and metadata without requiring proof-format breaks.
 
+## Ethereum Verification Thesis
+
+This EIP is grounded in a simple but powerful belief: the long-term health of Ethereum depends on making independent verification the default experience for ordinary users, not an advanced feature for experts.
+
+For too long, Ethereum has optimized for execution and scaling while treating verification as secondary. This has increased reliance on centralized RPC providers, reduced user sovereignty, and raised systemic trust assumptions. EIP-7864 flips that priority.
+
+By introducing a Partitioned Binary State Tree with strong locality, short proofs, and excellent circuit efficiency, the design makes local and private verification practical for wallets, phones, and light clients as the normal mode of operation.
+
+### Core Principles
+
+- Verification is correctness. Data that cannot be cheaply verified by end users is not fully trustworthy.
+- Consumer hardware is the target. If it does not work well on a mid-range phone in 2026 to 2027, it is not good enough.
+- Privacy is a protocol property. Query pattern leakage to infrastructure providers is a design flaw, not an externality.
+- Simplicity compounds. A clean binary tree with good locality enables better ZK systems, better clients, better gas incentives, and better extension paths.
+
+Success for this EIP is not measured only by smaller proofs or lower client complexity. It is measured by whether normal users can trust their own devices more than third-party servers. This is a foundational upgrade toward making Ethereum's world computer vision real for hundreds of millions of users.
+
 ### Motivation (Condensed)
 
 The current MPT presents three structural constraints:
