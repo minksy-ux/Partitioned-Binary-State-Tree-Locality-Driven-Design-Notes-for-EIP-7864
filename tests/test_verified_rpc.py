@@ -179,6 +179,50 @@ def test_verified_proof_rejects_boolean_path_bit():
     assert "malformed" in bad.reason
 
 
+def test_verified_proof_rejects_wrong_stem_values_count():
+    key, value, rh, proof = _build_tree_fixture()
+    payload = make_eth_getVerifiedProof_result(
+        provider="provider-a",
+        block_number=123,
+        block_hash=b"h" * 32,
+        state_root=rh,
+        key=key,
+        value=value,
+        proof=proof,
+    )
+
+    payload["proof"]["stemValues"] = payload["proof"]["stemValues"][:-1]
+    bad = verify_eth_getVerifiedProof_result(payload)
+    assert not bad.accepted
+    assert "malformed" in bad.reason
+
+
+def test_verified_proof_rejects_mismatched_path_lengths():
+    key, value, rh, proof = _build_tree_fixture()
+    if not proof.path_bits:
+        other_key = bytes([1]) + bytes([0xAA] * 32) + bytes([7])
+        other_value = (123).to_bytes(32, "big")
+        root = insert(EmptyNode(), key, value)
+        root = insert(root, other_key, other_value)
+        rh = root_hash(root)
+        proof = get_proof(root, key)
+
+    payload = make_eth_getVerifiedProof_result(
+        provider="provider-a",
+        block_number=123,
+        block_hash=b"h" * 32,
+        state_root=rh,
+        key=key,
+        value=value,
+        proof=proof,
+    )
+
+    payload["proof"]["pathBits"] = payload["proof"]["pathBits"][:-1]
+    bad = verify_eth_getVerifiedProof_result(payload)
+    assert not bad.accepted
+    assert "malformed" in bad.reason
+
+
 def test_stem_witness_payload_round_trip_and_local_verification():
     packet = _build_packet_fixture()
     payload = make_eth_getStemWitness_result(

@@ -18,6 +18,7 @@ from .stem_subscription import (
     verify_witness_packet,
 )
 from .tree import MerkleProof, verify_proof
+from .constants import STEM_SUBTREE_WIDTH
 
 
 METHOD_GET_VERIFIED_PROOF = "eth_getVerifiedProof"
@@ -26,6 +27,7 @@ METHOD_GET_STEM_PROOF = "eth_getStemProof"
 METHOD_GET_VERIFIED_STATE = "eth_getVerifiedState"
 WIRE_VERSION = "pbt-verified-rpc-v1"
 JSONRPC_VERSION = "2.0"
+MAX_PROOF_PATH_LENGTH = 4096
 
 # Minimal protocol-level JSON-RPC error codes used by this companion layer.
 ERR_INVALID_REQUEST = -32600
@@ -258,6 +260,8 @@ def _proof_from_json_dict(data: dict[str, Any]) -> MerkleProof:
     stem_values_raw = data.get("stemValues")
     if not isinstance(stem_values_raw, list):
         raise ValueError("proof.stemValues must be a list")
+    if len(stem_values_raw) != STEM_SUBTREE_WIDTH:
+        raise ValueError(f"proof.stemValues must contain {STEM_SUBTREE_WIDTH} entries")
     stem_values = [_hex_to_bytes(item, "proof.stemValues[]") for item in stem_values_raw]
     for stem_value in stem_values:
         _require_len(stem_value, 32, "proof.stemValues[]")
@@ -265,6 +269,8 @@ def _proof_from_json_dict(data: dict[str, Any]) -> MerkleProof:
     path_siblings_raw = data.get("pathSiblings")
     if not isinstance(path_siblings_raw, list):
         raise ValueError("proof.pathSiblings must be a list")
+    if len(path_siblings_raw) > MAX_PROOF_PATH_LENGTH:
+        raise ValueError("proof.pathSiblings exceeds maximum supported path length")
     path_siblings = [_hex_to_bytes(item, "proof.pathSiblings[]") for item in path_siblings_raw]
     for sibling in path_siblings:
         _require_len(sibling, 32, "proof.pathSiblings[]")
@@ -272,6 +278,10 @@ def _proof_from_json_dict(data: dict[str, Any]) -> MerkleProof:
     path_bits_raw = data.get("pathBits")
     if not isinstance(path_bits_raw, list):
         raise ValueError("proof.pathBits must be a list")
+    if len(path_bits_raw) > MAX_PROOF_PATH_LENGTH:
+        raise ValueError("proof.pathBits exceeds maximum supported path length")
+    if len(path_bits_raw) != len(path_siblings_raw):
+        raise ValueError("proof.pathBits length must match proof.pathSiblings length")
     if any(not isinstance(bit, int) or isinstance(bit, bool) for bit in path_bits_raw):
         raise ValueError("proof.pathBits entries must be integers")
     if any(bit not in (0, 1) for bit in path_bits_raw):
