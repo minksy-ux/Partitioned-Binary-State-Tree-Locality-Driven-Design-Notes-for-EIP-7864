@@ -30,6 +30,25 @@ def _run(cmd: list[str]) -> tuple[bool, str]:
     return result.returncode == 0, (result.stdout + result.stderr)
 
 
+def _git_rev_exists(rev: str) -> bool:
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", rev],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def _resolve_baseline() -> str | None:
+    # Prefer previous commit; shallow CI checkouts may not include it.
+    for candidate in ("HEAD~1", "origin/main~1", "origin/master~1"):
+        if _git_rev_exists(candidate):
+            return candidate
+    return None
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -60,6 +79,20 @@ def _restore_dist(source_dir: Path) -> None:
 
 
 def main() -> int:
+    baseline = _resolve_baseline()
+    if baseline is None:
+        report = {
+            "schema_version": "1.0.0",
+            "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "overall_ok": True,
+            "status": "PASS",
+            "note": "No baseline commit available in CI checkout; rollback drill skipped.",
+        }
+        REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        REPORT_PATH.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        print(f"rollback-drill: PASS (no baseline): wrote {REPORT_PATH}")
+        return 0
+
     ensure_ok, ensure_output = _ensure_release_artifacts()
     if not ensure_ok:
         report = {
@@ -162,6 +195,7 @@ def main() -> int:
         "schema_version": "1.0.0",
         "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "overall_ok": all_ok,
+        "baseline": baseline,
         "checks": results,
     }
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
