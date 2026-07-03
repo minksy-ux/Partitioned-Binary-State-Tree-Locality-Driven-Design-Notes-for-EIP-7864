@@ -1,5 +1,9 @@
 # EIP-7864: Partitioned Binary State Tree
 
+## Network Handoff
+
+For Ethereum Foundation or client-team evaluation artifacts, release-bundle steps, and readiness boundaries, see [EF_NETWORK_HANDOFF.md](EF_NETWORK_HANDOFF.md).
+
 | Field | Value |
 |---|---|
 | EIP | 7864 |
@@ -13,80 +17,219 @@
 
 ## Abstract
 
-This EIP specifies a Partitioned Binary Tree (PBT) as the new Ethereum state structure, replacing the hexary Patricia trie. Account headers, contract code, and contract storage are unified into a single canonical key-value tree keyed by prefix-free byte strings with fixed-width 32-byte values.
+This EIP defines a Partitioned Binary Tree (PBT) as a replacement for Ethereum's hexary Patricia trie. The PBT stores fixed-width 32-byte values under prefix-free byte-string keys and unifies account header data, code chunks, and storage slots in one canonical binary structure. Two design primitives drive the layout: partitioning by one-byte `storage_type`, and 256-leaf locality groups called stems. The result is deterministic tree shape, uniform binary proofs, and better adjacent-access locality than the current trie.
 
-The PBT is designed as a state architecture that makes private, local, and trust-minimized verification practical for ordinary users.
+The design removes RLP and variable node arity from state commitments, improving implementation simplicity and circuit-friendliness. It also reserves explicit extension space for expiry and metadata without changing existing proof paths. A stem-aware gas model and migration path from MPT are included. Hash function selection remains open; the reference implementation supports hash-function identifiers and ships BLAKE3 by default while including Keccak-256 and optional Poseidon2 integration hooks.
 
-EIP-7864 is intended to make Ethereum state access privately verifiable, locally checkable, and structurally ready for pruning and expiry.
+An optional non-consensus add-on specifies private stem retrieval and witness distribution primitives that preserve local verification as the correctness boundary.
 
-Its primary purpose is to make local verification cheaper and more universal, not merely to optimize client internals.
+## Executive Summary
 
-For an end-to-end adaptive retrieval example with retry and local-verification outcomes, see [Demo Trace (Adaptive Fallback)](#demo-trace-adaptive-fallback).
+This EIP replaces Ethereum's hexary Merkle Patricia Trie (MPT) with a Partitioned Binary Tree (PBT), a strictly binary state structure that stores account headers, contract code, and storage as fixed 32-byte values under prefix-free keys.
 
-State is organised along two independent axes:
+The design is verification-first. It is intended to make local verification practical on consumer hardware, improve locality, reduce circuit complexity, preserve hash agility, and reserve extension space for pruning, expiry, and metadata without requiring proof-format breaks.
 
-1. **Storage-type partitioning** — a one-byte prefix (`storage_type`) physically separates header, code, and storage data, enabling independent synchronisation and differentiated handling.
-2. **Locality via stems** — related data is grouped into 256-entry subtrees (stems), reducing the number of branch openings for adjacent accesses.
+### Motivation (Condensed)
 
-RLP is no longer used anywhere in the state tree. The hash function is not yet finalised; BLAKE3 is used in the reference implementation for convenience. Keccak-256 and Poseidon2 remain candidates.
+The current MPT presents three structural constraints:
+
+- variable proof paths with weak locality,
+- RLP-heavy node encoding that increases prover and implementation complexity,
+- no first-class layout for locality-driven access or future state-management features.
+
+PBT addresses these constraints through strict binary branching, stem-based locality, and explicit extension hooks.
+
+### Design Goals (Condensed)
+
+- proofs SHOULD be short and predictable,
+- adjacent accesses SHOULD share witness material via first-class locality,
+- structure SHOULD remain circuit-friendly (binary branching, fixed-width nodes, no RLP),
+- tree shape MUST remain independent of a specific hash function choice,
+- reserved space MUST support expiry and metadata extensions,
+- canonical form MUST be deterministic and incrementally adoptable.
+
+### Specification Snapshot (Condensed)
+
+- Tree is strictly binary.
+- Node set is `EmptyNode`, `InternalNode`, `StemNode`.
+- Key layout is `storage_type || tree_position || subindex`.
+- Each stem groups 256 fixed 32-byte leaves.
+- Partition bytes are `0x00` (account headers), `0x01` (contract code), and `0xff` (contract storage).
+
+Simplified key primitive:
+
+```python
+def get_tree_key(storage_type: int, tree_position: bytes, subindex: int) -> bytes:
+    return bytes([storage_type]) + tree_position + bytes([subindex])
+```
+
+Header stems co-locate basic account data, code hash, first code chunks, and first storage slots. Overflow code/storage spill into additional stems while preserving locality by grouped indexing.
+
+### Gas And Migration (Condensed)
+
+Stem-aware accounting is introduced:
+
+- first access to a stem pays branch-opening cost,
+- subsequent accesses within the same stem pay lower per-chunk cost.
+
+This SHOULD create a direct economic incentive for locality-friendly access patterns.
+
+Migration is two-phase at hard fork:
+
+1. deterministic conversion block from MPT state to PBT state,
+2. post-fork writes target PBT only, while MPT remains available for historical pre-fork proofs.
+
+### Rationale Highlights
+
+Compared with MPT, PBT provides a more uniform proof model, better locality, and simpler implementation/proving paths.
+
+Compared with Verkle-style commitments, PBT keeps hash-based assumptions, improves post-quantum transition posture, and allows hash-function replacement without tree-structure redesign.
+
+### Privacy, Extensions, And Security
+
+Stem locality naturally supports efficient private retrieval composition (for example, multi-provider and oblivious-style retrieval), while keeping local verification as the correctness boundary.
+
+Reserved subindex and/or `storage_type` space enables expiry, hot/cold hints, and archival metadata without changing existing Merkle paths.
+
+Security relies on strong hash pre-image resistance, canonical-form enforcement, and witness completeness for stateless validation.
+
+### Backward Compatibility
+
+This change requires a hard fork. Pre-fork blocks continue to use MPT proofs; post-fork state and proof flows are PBT-native.
+
+### Appendix: Broader Vision (Non-Normative)
+
+The longer-term direction supported by this design includes:
+
+- practical local verification on consumer devices,
+- reduced reliance on centralized RPC trust assumptions,
+- cleaner state-expiry and pruning evolution,
+- reduced proving costs for future execution models.
+
+### Simple Overview
+
+```mermaid
+flowchart TD
+    A[Top-level partition by storage_type] --> H[HEADER_SUBTREE]
+    A --> C[CODE_SUBTREE]
+    A --> S[STORAGE_SUBTREE]
+
+    H --> HS[Header stem per account]
+    HS --> B0[BASIC_DATA]
+    HS --> B1[CODE_HASH]
+    HS --> B2[First code chunks]
+    HS --> B3[First storage slots]
+
+    C --> CO[Overflow code stems]
+    S --> SO[Overflow storage stems]
+
+    HS --> P[One branch opening serves hot state]
+```
 
 ## Motivation
 
 The hexary Patricia trie (MPT) has three fundamental problems that motivate replacement:
 
-1. **Proof length.** A hexary tree over an address space of size $N$ produces proofs of depth $\lceil \log_{16} N \rceil$, which is approximately 8 nodes for the current state size. A binary tree reduces this to $\lceil \log_2 N \rceil \approx 32$ bit-steps over a much simpler node type, but each node requires only one hash comparison instead of up to 16. The net result is shorter, more uniform witness branches.
+1. **Proof shape and verifier simplicity.** A hexary tree over an address space of size $N$ produces proofs of depth $\lceil \log_{16} N \rceil$, which is approximately 8 nodes for the current state size. A binary tree uses $\lceil \log_2 N \rceil \approx 32$ bit-steps with a much simpler node type and fixed branching at every step. The result is a more uniform witness model and simpler verifier logic.
 2. **RLP and variable node types.** The MPT mixes extension nodes, branch nodes, and leaf nodes encoded in RLP. This variable structure is expensive to represent in ZK circuits and makes canonical-form enforcement difficult across client implementations.
 3. **No first-class locality.** The MPT has no notion of grouping related data. Every account field, code byte, and storage slot is an independent trie path. Adjacent accesses do not share witnesses.
 
-A PBT solves all three problems: it is strictly binary, uses no RLP, and groups related data into 256-entry stems.
+PBT addresses these directly: binary branching removes variable-arity trie logic, stems provide explicit locality, and storage-type partitioning enables independent handling of header, code, and storage flows.
+
+### Why Not Verkle?
+
+| Dimension | Verkle (KZG/IPA commitments) | PBT (hash-based binary tree) |
+|---|---|---|
+| Cryptographic assumption | Elliptic-curve polynomial commitments | Collision-resistant hash function |
+| Post-quantum posture | Weaker long-term posture (curve assumptions) | Hash agility; easier PQ migration path |
+| Circuit model | More complex opening arithmetic | Bit tests + fixed-width hashes |
+| Structural agility | Commitment swap may require structural redesign | Hash swap keeps tree shape/proof flow |
+| Locality primitive | Not inherent | First-class stems (256 leaves) |
+
+## Design Philosophy
+
+The core design goal is a canonical state structure that is easier to verify locally and easier to evolve safely. Broader ecosystem goals (consumer-device verification targets, formal-verification process, decentralization metrics, and long-horizon cryptographic policy) are important but are maintained in a companion document so this EIP can stay focused on consensus-critical tree mechanics.
+
+### Working Name And Messaging
+
+For ecosystem communication, implementations MAY use a product-facing label such as "Verifiable State Tree" (or "Stem State") while preserving the normative technical name Partitioned Binary Tree in specification text.
+
+A concise adoption message is: "Ethereum: verify, do not trust."
+
+## Scope And Companion Principles
+
+This EIP is scoped to the state-tree structure, key derivation, node semantics, proof model, gas-accounting hooks, and migration mechanics.
+
+Broader ecosystem principles are split into a companion document: [ETHEREUM_EVOLUTION_PRINCIPLES.md](ETHEREUM_EVOLUTION_PRINCIPLES.md).
+
+RFC 2119 keywords in this document apply to consensus-critical behavior unless explicitly marked as optional/non-consensus guidance.
+
+### Consensus Boundary Map
+
+Consensus-critical scope in this document includes:
+
+- canonical tree structure and node semantics,
+- key derivation and hashing domains for state commitments,
+- proof verification rules and canonical-form invariants,
+- migration mechanics and activation constraints.
+
+Non-consensus policy and ecosystem scope includes:
+
+- consumer-hardware verification budgets and rollout targets,
+- roadmap framing (including The Verge alignment and VM co-design expectations),
+- deployment priorities, adoption incentives, and communication guidance,
+- optional witness delivery and compression deployment profiles.
 
 ## Evaluation Criteria
 
-This EIP SHOULD be evaluated not only by witness size, but also by whether it makes local verification realistic for ordinary users on consumer hardware and reduces trust in RPC infrastructure.
+The core design is evaluated against tree-level outcomes:
 
-Wallets and clients SHOULD be able to verify common account and storage queries without exposing their full query pattern to any single server. The tree design SHOULD therefore preserve compatibility with privacy-preserving query mechanisms, including redundant multi-provider queries and, where practical, PIR or equivalent oblivious access techniques.
+- deterministic canonical structure for any `(key, value)` set,
+- predictable proof construction and verification,
+- measurable locality gains from stems,
+- extension compatibility for expiry/metadata,
+- compatibility with private retrieval compositions.
 
-Query-pattern leakage to any single provider SHOULD be treated as a protocol-level privacy metric for common state-access workflows.
+## Success Metrics (12-24 Months Post-Activation, Non-Consensus)
 
-The state layout MUST reserve explicit extension space for future metadata such as state expiry, hot/cold classification, archival status, and access hints, provided these additions do not alter existing Merkle paths or proof formats.
+Ecosystem stakeholders SHOULD publish progress against measurable outcomes:
 
-A conforming design is expected to:
+- share of major wallets that perform local verification by default for balance and token reads,
+- median and p95 single-key proof payload sizes for common wallet queries,
+- median verified balance-check latency on mid-range Android devices,
+- concentration of RPC query flows across top providers before and after verified retrieval rollout,
+- adoption of stem-aware caching in wallet and light-client implementations.
 
-- reduce proving cost,
-- shorten branches,
-- improve adjacent-slot locality,
-- enable future state expiry,
-- and make full verification on normal devices more realistic.
+### Quantitative Success Metrics (Non-Consensus)
 
-### Verification-First Doctrine
+| Metric | Target | Measurement Window |
+|---|---|---|
+| Average witness size for account access | < 10 KB | 12 months post-activation |
+| Validators running stateless or partially stateless clients | > 50% | 24 months post-activation |
+| Reduction in centralized RPC usage for balance checks | publish measurable network-wide reduction target before fork activation | 12-24 months post-activation |
+| End-to-end proving cost reduction vs EVM+MPT baseline | publish explicit target percentage at activation, with quarterly updates | 12-24 months post-activation |
 
-This EIP adopts a verification-first doctrine.
+## Verification on Consumer Hardware (Non-Consensus)
 
-- The state tree MUST primarily let users verify their own state transitions and reads locally, not merely reduce implementation complexity for clients.
-- Success is measured in user terms: users SHOULD be able to verify common state access themselves without broadcasting their full interests to a single infrastructure provider.
-- Mid-range phones are a concrete target: common balance, history, and state-access checks SHOULD be privately and locally verifiable on consumer devices.
+This EIP defines a phone-grade north-star deliverable: local verification MUST be practical on consumer hardware, not only on desktop-class machines.
 
-### Privacy As A Success Criterion
+### Verification Budget Targets
 
-Privacy MUST be treated as part of correctness at the protocol-design level, not only a transport add-on.
+| Device Class | Max RAM | Max Sync Time | Max Proof Verify Time per Block | Target |
+|---|---:|---:|---:|---|
+| Mid-range Phone (2026) | 512 MB | < 30s | < 2s | Full verification |
+| High-end Phone | 1 GB | < 10s | < 500ms | Default wallet mode |
 
-- If query-pattern leakage remains heavy in common wallet flows, the design MUST be treated as incomplete and require further privacy hardening.
-- Implementations SHOULD use redundant retrieval, oblivious retrieval, or equivalent composition such that no single provider can observe an entire session's query pattern.
+### Minimal Verifier Spec (Cross-Fork Budget Invariant)
 
-### Gradual Adoption And Minimal Surface
+The ecosystem SHOULD maintain a canonical Minimal Verifier profile (Rust and/or WASM) with the following properties:
 
-Adoption SHOULD be progressive, additive, and low-friction.
+- verifies canonical header linkage and PBT state roots,
+- verifies single-key and multi-key stem proofs,
+- enforces deterministic proof-shape and canonical-node checks,
+- runs within the budget table above on representative phone hardware.
 
-- The ecosystem MUST be able to adopt the primitive incrementally without an all-at-once migration of wallet, node, and provider stacks.
-- Designs SHOULD prefer one minimal, composable primitive over multiple special-case mechanisms.
-- The primitive MUST NOT require a mandatory global coordinator, mandatory registry, or privileged provider class.
-
-### Future-Proof Compatibility
-
-This design is intentionally forward-compatible.
-
-- The primitive MUST remain compatible with pruning, state-expiry evolution, and future account-model changes.
-- Future extensions SHOULD attach via reserved metadata locations or equivalent additive mechanisms without changing canonical proofs for existing state.
+Across fork upgrades, this Minimal Verifier profile MUST remain within the budget envelope or activation planning MUST publish an explicit mitigation path and timeline to restore budget compliance.
 
 ## Specification
 
@@ -115,12 +258,85 @@ The design SHALL satisfy the following requirements:
 | `STORAGE_CHUNKS_IN_HEADER` | `4` | number of storage slots co-located in the header stem |
 | `STEM_SUBTREE_WIDTH` | `256` | number of leaf slots per stem |
 | `MAIN_STORAGE_OFFSET` | $256^{31}$ | page offset for overflow storage stems |
+| `HEADER_CODE_RANGE` | `4..19` | inclusive code-chunk subindex window in header stem |
+| `HEADER_STORAGE_RANGE` | `20..23` | inclusive storage-slot subindex window in header stem |
 
 **Constraints that MUST hold:**
 
 $$\text{STEM\_SUBTREE\_WIDTH} > \text{HEADER\_STORAGE\_OFFSET} > \text{CODE\_OFFSET} > \text{CODE\_HASH\_LEAF\_KEY}$$
 
 $$\text{MAIN\_STORAGE\_OFFSET} = \text{STEM\_SUBTREE\_WIDTH}^{31}$$
+
+### Hash Function Strategy
+
+#### Poseidon2 Integration Profile
+
+Implementations MAY use Poseidon2 as the active tree hash function, especially in proving-oriented deployments.
+
+Recommended profile (non-normative until finalized in reference vectors):
+
+- Poseidon2 permutation parameters targeting ~256-bit security over the selected field (for example, BN254 or BLS12-381),
+- 2-to-1 or rate-1 hash mode,
+- 8-12 rounds depending on the audited parameter set and backend.
+
+When Poseidon2 is selected, both of the following MUST use the same Poseidon2 profile:
+
+- `tree_hash(left ++ right)` in internal-node hashing,
+- `_hash_stem(prefix ++ values)` / stem payload hashing.
+
+Implementations MUST support hash-function identifiers so a future hard fork can upgrade the active hash without changing tree structure, key derivation, or proof shape.
+
+Each consensus deployment profile MUST pin exactly one active `hash_id` at activation (for example, `blake3`, `keccak256`, or `poseidon2`) and include that identifier in fork-level conformance documentation.
+
+The reference implementation includes built-in hash IDs and switching hooks for:
+
+- `blake3` (default),
+- `keccak256`,
+- `poseidon2` (enabled when a compatible backend is present).
+
+#### Appendix B: Poseidon2 Circuit & STARK Considerations (Non-Normative)
+
+This subsection highlights why Poseidon2 is strategically important for proving-oriented deployments.
+
+#### Circuit Cost Profile
+
+In ZK circuits, Poseidon2-based hashing is typically much cheaper than Keccak-style hashing and often materially cheaper than BLAKE3-style constructions. For hash-heavy witness checks, teams commonly target order-of-magnitude constraint reductions, depending on backend and parameter set.
+
+For PBT specifically, this applies directly to both dominant hash paths:
+
+- internal node hashing via `tree_hash(left ++ right)`,
+- stem commitments via `_hash_stem(prefix ++ values)`.
+
+Because PBT is strictly binary and fixed-width, replacing the hash backend does not change tree structure, key semantics, or proof shape.
+
+#### STARK-Friendly Execution Considerations
+
+For STARK and STARK-adjacent proving stacks, Poseidon2 can reduce trace and algebraic complexity relative to non-native hash choices, especially when large witness sets contain many branch checks and stem commitments.
+
+Implementations that use Binius-oriented proving backends MAY publish dedicated profile identifiers (for example, `*_binius`) with measured trace-row and constraint-count deltas so cross-client benchmarking remains reproducible.
+
+Recursive STARK pipelines SHOULD publish both base and recursive cost estimates (trace rows and constraint counts) per profile and recursion layer so verifier aggregation tradeoffs are explicit.
+
+This makes PBT especially attractive for:
+
+- zkEVM proving systems,
+- stateless witness provers,
+- future prover-friendly execution environments.
+
+#### Poseidon2 + STARK Optimized Gadget Reference Track (Non-Normative)
+
+Client teams SHOULD maintain a public circuit-gadget reference track for PBT hash operations across proving stacks (for example, Plonky3, Circle STARK, and Binius) and publish:
+
+- audited gadget definitions for internal-node and stem hashing,
+- reproducible constraint-count and trace-row benchmarks,
+- compatibility vectors that demonstrate identical key-path behavior across gadget backends.
+
+#### Implementation Guidance
+
+- Consensus profiles SHOULD pin one `hash_id` per activation and publish the exact Poseidon2 parameter tuple in conformance artifacts.
+- Client teams SHOULD benchmark both proving-time and native verification-time performance on representative workloads (wallet reads, multi-key proofs, and block execution traces).
+- Client teams SHOULD publish component-level constraint-count estimates (internal-node hashes, stem hashes, and auxiliary hashes) alongside total estimates.
+- Production rollouts SHOULD include cross-client vectors that verify identical key-path behavior across all supported hash profiles.
 
 ### Tree Model
 
@@ -187,14 +403,28 @@ def get_tree_key(storage_type: int, tree_position: bytes, subindex: int) -> byte
     return bytes([storage_type]) + tree_position + bytes([subindex])
 ```
 
+#### Domain Separation For Tree Positions
+
+Implementations SHOULD domain-separate preimages before hashing `tree_position` material. A recommended pattern is:
+
+```python
+HEADER_DOMAIN = b"PBT:HEADER:v1"
+CODE_DOMAIN = b"PBT:CODE:v1"
+STORAGE_DOMAIN = b"PBT:STORAGE:v1"
+```
+
+and then hash `domain || address || optional_page_material`.
+
 #### Account Header Keys
 
 ```python
 def get_tree_key_for_basic_data(address: Address32) -> bytes:
-    return get_tree_key(HEADER_SUBTREE, hash(address), BASIC_DATA_LEAF_KEY)
+    tree_position = hash(HEADER_DOMAIN + address)
+    return get_tree_key(HEADER_SUBTREE, tree_position, BASIC_DATA_LEAF_KEY)
 
 def get_tree_key_for_code_hash(address: Address32) -> bytes:
-    return get_tree_key(HEADER_SUBTREE, hash(address), CODE_HASH_LEAF_KEY)
+    tree_position = hash(HEADER_DOMAIN + address)
+    return get_tree_key(HEADER_SUBTREE, tree_position, CODE_HASH_LEAF_KEY)
 ```
 
 The `BASIC_DATA` leaf encodes four fields in exactly 32 bytes, big-endian:
@@ -218,18 +448,20 @@ bytes 1–31:  code_slice       – the 31 bytes of bytecode (zero-padded at the
 
 ```python
 def get_tree_key_for_code_chunk(address: Address32, chunk_id: int) -> bytes:
+    header_position = hash(HEADER_DOMAIN + address)
     if chunk_id < CODE_CHUNKS_IN_HEADER:
         return get_tree_key(
             HEADER_SUBTREE,
-            hash(address),
+            header_position,
             CODE_OFFSET + chunk_id,
         )
     overflow = chunk_id - CODE_CHUNKS_IN_HEADER
     high = overflow // STEM_SUBTREE_WIDTH
     low  = overflow % STEM_SUBTREE_WIDTH
+    code_position = hash(CODE_DOMAIN + address + int_to_bytes32(high))
     return get_tree_key(
         CODE_SUBTREE,
-        hash(address + int_to_bytes32(high)),
+        code_position,
         low,
     )
 ```
@@ -238,23 +470,27 @@ def get_tree_key_for_code_chunk(address: Address32, chunk_id: int) -> bytes:
 
 ```python
 def get_tree_key_for_storage_slot(address: Address32, storage_key: int) -> bytes:
+    header_position = hash(HEADER_DOMAIN + address)
     if storage_key < STORAGE_CHUNKS_IN_HEADER:
         return get_tree_key(
             HEADER_SUBTREE,
-            hash(address),
+            header_position,
             HEADER_STORAGE_OFFSET + storage_key,
         )
     overflow = storage_key - STORAGE_CHUNKS_IN_HEADER
     high = overflow // STEM_SUBTREE_WIDTH
     low  = overflow % STEM_SUBTREE_WIDTH
+    storage_position = hash(STORAGE_DOMAIN + address) + hash(
+        STORAGE_DOMAIN + address + int_to_bytes32(high)
+    )
     return get_tree_key(
         STORAGE_SUBTREE,
-        hash(address) + hash(address + int_to_bytes32(high)),
+        storage_position,
         low,
     )
 ```
 
-The double-hash construction in `tree_position` for storage (`hash(address) + hash(address + int_to_bytes32(high))`) prevents adversarial alignment: two different contracts cannot be forced to share a `tree_position`, and two different page indices for the same contract produce different positions.
+The storage overflow double-hash construction prevents adversarial alignment: two different contracts cannot be forced to share a `tree_position`, and two different page indices for the same contract produce different positions.
 
 ### Node Types
 
@@ -334,6 +570,8 @@ After every insert the tree MUST satisfy:
 - No two distinct key sets produce the same tree structure.
 - The Merkle root hash is deterministic given the set of `(key, value)` pairs.
 
+Equivalently, the tree is the unique minimal binary tree representing the set of stems.
+
 ### Circuit Model And Proving Cost
 
 The tree is a circuit-friendly object. Implementations intended for use in ZK pipelines MUST rely only on the following primitive operations:
@@ -350,6 +588,8 @@ Expected witness-cost properties:
 - Adjacent accesses within the same stem share one branch opening; $k$ accesses to the same stem cost $O(1)$ branch openings regardless of $k$.
 - Worst-case proof size for a single key is $O(\text{key\_bits})$ hashes, with a fixed branching factor of 2 at every level.
 
+In proving systems, Poseidon2-based hashing can significantly reduce constraint cost versus Keccak-oriented circuits; practical deployments often report order-of-magnitude reductions for hash-heavy witness checks.
+
 ### Metadata And State-Expiry Hooks
 
 The design MUST reserve a clear extension point for future metadata. Implementations MUST define explicit reserved metadata space, either via reserved subindex ranges, reserved `storage_type` partitions, or both, and MUST publish that reservation map as part of consensus constants before activation. Reserved metadata space is used for:
@@ -362,6 +602,25 @@ The design MUST reserve a clear extension point for future metadata. Implementat
 These bits MUST have a defined home before they are needed, not bolted on after the fact. Allocating metadata to reserved leaf indices or to reserved `storage_type` values ensures future extensions can be introduced without changing Merkle paths, circuit assumptions, or existing proof formats.
 
 This extension point is the designed path for state expiry: when expiry semantics are adopted, an epoch identifier or last-access hint can be stored in a reserved leaf adjacent to the data it annotates, without restructuring the tree.
+
+### Partial State Expiry Mechanism (Draft, First-Class Extension Path)
+
+This EIP defines a concrete partial-expiry mechanism shape for reserved metadata space, even when activation is deferred to a companion fork.
+
+Required metadata fields per account/stem expiry domain:
+
+- `expiry_epoch`: epoch after which state enters expiry handling,
+- `last_access_epoch`: rolling hint for grace and revival policy,
+- `expiry_flags`: bitfield for active, grace, expired, archived, and revival-required statuses.
+
+Draft transition model:
+
+1. Active: `current_epoch < expiry_epoch`.
+2. Grace: `current_epoch >= expiry_epoch` and within configured grace window.
+3. Expired: beyond grace window; reads/writes require expiry-aware witness handling.
+4. Revived: state may re-enter active mode only with valid revival witness linkage.
+
+Consensus-critical activation details remain in a companion EIP, but the metadata home, proof compatibility constraints, and transition-shape expectations are intentionally defined here as first-class protocol direction.
 
 ## Rationale For Tree Selection
 
@@ -385,7 +644,16 @@ Verkle trees reduce proof size by using polynomial commitments and vector openin
 
 PBT avoids these issues by using a plain hash function. The hash function is swappable without changing the tree structure or the proof format. This is the safer long-term design choice: the structure does not bet on one algebraic assumption remaining tractable.
 
-## Execution Layer Roadmap Compatibility
+Related lines of work include Stateless Ethereum witness design efforts and Verkle migration research; this proposal diverges by prioritizing hash-only commitments and explicit stem-locality economics.
+
+### Why Poseidon2 Is Attractive For PBT
+
+- Binary branching plus Poseidon2 yields a prover-friendly composition for zkEVM and stateless proving pipelines.
+- Large witness sets (many stems) become materially cheaper to prove compared with Keccak-oriented hash paths.
+- The same canonical tree model remains compatible with faster native hashes (for example, BLAKE3) in non-proving contexts.
+- Hash agility is preserved: clients can run BLAKE3-oriented profiles today and migrate to Poseidon2-oriented profiles at fork boundaries through hash-function identifiers.
+
+## Execution Layer Roadmap Compatibility (Non-Consensus)
 
 The PBT is designed to be one half of a two-track execution-layer modernisation:
 
@@ -400,336 +668,145 @@ The tree is shaped to work with both current EVM execution and a future prover-f
 
 State structure, execution model, and proving stack SHOULD be co-designed so that improvements in one do not introduce regressions in the others.
 
----
+Together with a RISC-V-centric VM track, PBT + Poseidon2 is expected to reduce total proving cost by more than 80% relative to the current EVM + MPT baseline on representative execution workloads.
 
-## Broader Protocol Requirements
+## Roadmap Integration: The Verge (Non-Consensus)
 
-The following requirements extend beyond the state tree itself. They are recorded here because this EIP is part of a wider set of execution-layer changes and the requirements below are necessary context for evaluating whether those changes succeed as a coherent whole.
+This EIP is explicitly aligned with The Verge priorities:
 
----
-
-### Full Verification On Consumer Devices
-
-**Requirement.** Mid-range smartphones MUST be treatable as full verifiers, not merely light clients.
-
-A full verifier validates every block independently, including state transitions and proof verification, without trusting any third party. This is distinct from a light client, which trusts a supermajority of validators.
-
-**Resource budgets.** The protocol MUST stay within the following budgets for a mid-range smartphone (defined as a device with 4 GB RAM, 128 GB storage, and a 50 Mbit/s connection as of 2026):
-
-| Resource | Budget |
-|---|---|
-| Peak RAM during block verification | ≤ 512 MB |
-| Sustained disk write throughput | ≤ 10 MB per slot |
-| Historical state storage (pruned) | ≤ 32 GB |
-| Bandwidth per slot (receive) | ≤ 1 MB |
-
-These budgets MUST be re-evaluated at least once every two years against the median mid-range device sold in that period.
-
-**Pruning and state-growth controls.** State growth controls MUST be tied directly to the above device budgets. Specifically:
-
-- The effective state size growth rate MUST NOT exceed what allows a device within budget to keep a pruned full-verification state within the storage limit above.
-- Any EIP that expands the state MUST include a quantitative analysis showing that the storage budget is not violated over a 4-year horizon at current gas prices.
-- State expiry or equivalent mechanisms are REQUIRED if state growth would otherwise breach the storage budget.
-
-**Reference implementation.** A canonical "phone-grade" full verifier implementation MUST be maintained alongside the protocol specification. It MUST:
-
-- run within the resource budgets defined above on reference hardware,
-- be kept passing across all future hard forks,
-- serve as the compliance target for resource-budget evaluation.
+- statelessness via witness-friendly, canonical binary proofs,
+- practical local verification on commodity devices,
+- reduced dependence on centralized RPC trust through proof-carrying state access.
 
 ---
 
-### Formal Verification
+## Companion Principles (Non-Consensus)
 
-**Requirement.** Formal verification is a protocol-level requirement, not an optional add-on.
+This EIP intentionally focuses on consensus-critical state-tree mechanics. Broader ecosystem principles are maintained in [ETHEREUM_EVOLUTION_PRINCIPLES.md](ETHEREUM_EVOLUTION_PRINCIPLES.md).
 
-Specifically:
+Those companion principles cover:
 
-- All future changes to consensus-critical code and the EVM MUST be accompanied by a machine-checked proof of the relevant safety properties before activation.
-- A canonical proof language or interchange format for protocol and critical-contract safety properties MUST be standardised. All formally verified proofs MUST be expressed in this format and published alongside the EIP.
-- New features MUST be evaluated against a **verifiability budget**: a bounded measure of the proof complexity required to establish their safety. Features that consume a large share of the verifiability budget require proportionally stronger justification. The verifiability budget is tracked alongside the complexity budget (see below).
+- consumer-device verification goals,
+- formal verification process and verifiability budgets,
+- decentralization and L2 quality metrics,
+- long-horizon cryptographic migration expectations,
+- trust-minimized interoperability and governance guidance.
 
-The rationale is that features which are difficult to formally verify are implicitly riskier: they may contain subtle invariant violations that are not caught by testing or audit alone.
+This EIP informatively references the companion document for ecosystem-level objectives, while consensus behavior remains fully specified by this EIP's tree structure, proofs, gas hooks, and migration semantics.
 
----
+## Deployment Priorities (Non-Consensus)
 
-### L2 Quality Bar
+The following work items are high-impact companions to this EIP and SHOULD be prioritized in parallel:
 
-**Requirement.** L2 systems that interact with Ethereum L1 state MUST meet a minimum quality bar to be considered part of the Ethereum ecosystem.
+1. Ship a phone-grade verifier reference implementation (Rust and/or WASM) that verifies block headers, state transitions, and PBT proofs within practical mobile budgets.
+2. Standardize a minimal verified-RPC companion protocol where responses include state proof material and header linkage for mandatory local verification.
+3. Make hot-stem caching and adaptive multi-provider retrieval default in wallet SDKs.
+4. Align gas incentives with verification-friendly behavior (cheap warm-stem access, explicit treatment of cold-stem openings, witness-aware transaction ergonomics).
+5. Publish a public formal-verification dashboard that tracks proof coverage, proof-check status, and protocol-component verification gaps.
+6. Define and activate a mandatory state-expiry companion protocol using reserved metadata locations, with deterministic transition rules and expiry-proof validation.
+7. Adopt memorable ecosystem messaging for end users and integrators (recommended tagline: "Ethereum: verify, do not trust.") while keeping Partitioned Binary Tree as the normative technical name.
+8. Publish and maintain a canonical phone-user journey (balance, token, NFT checks) with measurable SLOs for verified-read latency and failure-retry behavior.
+9. Target default wallet local verification behavior within 12 months of activation for major wallet implementations.
+10. Standardize `eth_getStemProof` and `eth_getVerifiedState` as baseline application-facing verified-RPC methods, alongside compatibility support for existing method names.
 
-The minimum bar includes:
+## Ecosystem Incentives And Verification Artifacts (Non-Consensus)
 
-| Property | Minimum Requirement |
-|---|---|
-| Proof system | A validity proof or fraud proof with a published, audited specification MUST exist |
-| Dispute window | Fraud-proof dispute windows MUST be ≥ 7 days |
-| Data availability | Transaction data MUST be available on-chain or via a DA layer with equivalent security guarantees |
-| Bridge design | The canonical bridge MUST use a standardised, formally verified design (see below) |
-| Sequencer decentralisation | A credible path to decentralised sequencing MUST be documented and time-bound |
+To accelerate adoption, ecosystem programs SHOULD include:
 
-**Cross-L2 bridge standard.** A canonical cross-L2 bridge design MUST be standardised at the protocol level. Ad-hoc, semi-centralised bridges are not acceptable for ecosystem-level infrastructure. The canonical design MUST:
+- a stem-locality incentive track (protocol or ecosystem-funded) rewarding contracts and tooling that materially reduce witness overhead,
+- machine-checked formal artifacts (for example, Lean/Coq) covering insertion/deletion canonicality and proof verification invariants,
+- public conformance dashboards that combine implementation status, proof coverage, and mobile-budget compliance telemetry.
 
-- be formally verified,
-- use only on-chain or DA-backed data,
-- not rely on off-chain multisigs for security.
+## Branding Package (Non-Consensus)
 
-**Anti-centralisation expectations for L2 sequencers and MEV.** L2 systems SHOULD document their sequencer model and its centralisation properties. The base protocol's stated goals of decentralisation and censorship resistance MUST be treated as binding constraints on L2 design, not optional aspirations.
+The ecosystem SHOULD adopt a consistent, memorable public message for wallet users, SDK adopters, and infrastructure operators.
 
----
+Normative technical name:
 
-### Protocol Complexity Management
+- Partitioned Binary Tree (PBT)
 
-**Requirement.** The Ethereum protocol MUST be managed as a bounded-complexity system.
+Recommended public-facing product label:
 
-**Complexity budget.** A formal complexity budget MUST be maintained. New complexity introduced by any EIP MUST be offset by retiring an equivalent or greater amount of existing complexity. Complexity is measured in terms of:
+- Verifiable State Tree
 
-- number of distinct node or opcode types an implementation must handle,
-- number of special cases in the state transition function,
-- number of active precompiles and opcodes.
+Primary tagline:
 
-**Deprecation pipeline.** A structured deprecation pipeline MUST exist for legacy features, including:
+- Ethereum: verify, do not trust.
 
-- problematic precompiles (e.g., those with poor ZK efficiency or active security concerns),
-- obsolete opcodes,
-- legacy encoding formats (e.g., RLP in contexts where it has been superseded).
+One-page vision summary:
 
-Deprecation MUST follow a published schedule with a minimum warning period of two years before removal.
+- [VISION_ONE_PAGER.md](VISION_ONE_PAGER.md) — "Ethereum: Verify, don't trust — on your phone."
 
-**Simplification hard forks.** At least one hard fork per epoch (approximately every two years) SHOULD be designated as a simplification fork: its primary purpose is removing or replacing legacy features, not introducing new ones. New features MAY be bundled with a simplification fork only if they are net-negative in complexity.
+Secondary short lines for UX surfaces:
 
----
+- Proofs, not promises.
+- Your wallet verifies.
+- Local checks. Global consensus.
 
-### Privacy Baseline
+Messaging rules:
 
-**Requirement.** The Ethereum protocol and its canonical infrastructure MUST provide a baseline privacy layer for common client operations.
+- UI text that says "verified" SHOULD mean locally verified against a trusted root.
+- UI text MUST distinguish unverified transport data from locally verified values.
+- Specs, audits, and implementation docs MUST continue using the technical name Partitioned Binary Tree.
 
-Specifically:
+## Mandatory State Expiry Companion Proposal (Draft, Non-Consensus)
 
-- Balance queries, log retrieval, and history lookups MUST be serviceable without revealing the querying client's address or IP to any single server.
-- Node discovery MUST NOT require participating nodes to expose wallet addresses or query patterns to peers.
-- Core infrastructure MUST NOT implement dark patterns — design choices that lead to unintentional disclosure of user data to aggregators or analytics services.
+This section proposes a mandatory companion protocol for state expiry that uses reserved metadata locations defined by this EIP.
 
-**Wallet UX defaults.** Social recovery and time-lock mechanisms MUST be the default UX pattern in wallet standards that interact with the base protocol, not niche add-ons. Recovery mechanisms SHOULD be usable without on-chain disclosure of the recovery path until it is invoked.
+### Objectives
 
----
+- bound long-run state growth,
+- keep expiry logic proof-verifiable under the same local-verification pipeline,
+- avoid changes to canonical key derivation and existing proof paths for non-expiry leaves.
 
-### Decentralisation Metrics And Enforcement
+### Expiry Metadata Model
 
-**Requirement.** Decentralisation is a quantitative protocol property, not a qualitative aspiration.
+At minimum, the companion protocol SHOULD define:
 
-**Metrics.** The following metrics MUST be tracked and published at least quarterly:
+- expiry epoch metadata per account/stem,
+- grace-window parameters,
+- archival/revival markers for expired state recovery paths.
 
-| Metric | Description |
-|---|---|
-| Client diversity | fraction of validators per execution and consensus client |
-| Node geographic distribution | Gini coefficient of nodes by country and ASN |
-| Solo vs. pooled staking | fraction of stake held by solo stakers vs. liquid staking pools |
-| RPC reliance | fraction of user transactions routed through centralised RPC providers |
-| Builder / proposer concentration | HHI of block proposer and builder market |
+The metadata MUST live in reserved metadata locations and MUST NOT require a new trie shape.
 
-**Trigger thresholds.** The following thresholds MUST trigger a defined protocol or ecosystem response when breached:
+### Core Invariants
 
-| Metric | Threshold | Required Response |
-|---|---|---|
-| Single client > 33% of validators | breach of 33% | client team issued a mandatory diversity advisory; hard fork timeline reviewed |
-| Single staking pool > 33% of stake | breach of 33% | protocol-level review of staking incentive parameters |
-| Single RPC provider > 50% of transactions | breach of 50% | accelerated deployment of privacy-preserving RPC alternatives |
+- Expiry transitions MUST be deterministic given block data and protocol parameters.
+- Non-expired state proofs MUST remain format-compatible with the existing PBT proof model.
+- Expiry and revival proofs MUST be verifiable using the same root-anchored local verification boundary.
+- Clients that do not implement expiry validation MUST be treated as non-conforming after activation.
 
-**Roadmap gating.** Major roadmap items — including execution layer upgrades, account abstraction, scaling changes, and zkEVM activation — MUST include a decentralisation impact assessment before activation. An item that is projected to worsen any metric beyond its trigger threshold MUST be modified or deferred until the impact is addressed.
+### Proposed Phased Rollout
 
----
+1. Definition phase:
+    - finalize expiry metadata fields and wire semantics,
+    - publish conformance vectors for active, grace, and expired states.
+2. Shadow phase:
+    - clients compute expiry metadata off-consensus and publish telemetry,
+    - wallets and SDKs integrate expiry-proof verification in non-blocking mode.
+3. Enforcement phase:
+    - activate consensus enforcement at a scheduled fork,
+    - require expiry-proof validation for stateless and partially stateless execution paths.
 
-### Quantum-Resistant Cryptography
+### Activation Readiness Criteria
 
-**Requirement.** Quantum-resistant signatures MUST be a first-class option, not an optional add-on, with clear migration paths and published performance targets.
+- cross-client equivalence on expiry transition vectors,
+- public dashboards showing expiry-proof conformance coverage,
+- wallet and SDK support for verified handling of expired-state responses,
+- published failure-mode playbooks for incorrect expiry metadata or missing revival witnesses.
 
-**Scheme requirements.** The protocol MUST support at least one signature scheme that is secure against a cryptographically relevant quantum computer (CRQC). Acceptable families include:
+### Validation Rules (High-Level)
 
-| Family | Example schemes | Notes |
-|---|---|---|
-| Hash-based | SPHINCS+, XMSS | stateless or stateful; well-understood security |
-| Lattice-based | Dilithium (ML-DSA), Falcon | NIST-standardised; smaller signatures than hash-based |
-| Hybrid | classical + post-quantum | transition period only; MUST NOT be the long-term target |
+Implementations SHOULD reject, at minimum:
 
-**Performance targets.** Any PQ scheme activated at the protocol level MUST meet the following targets on the reference phone-grade device:
+- malformed expiry metadata proofs,
+- inconsistent epoch transitions,
+- revival attempts without required proof linkage,
+- expiry state claims not anchored to the locally trusted root.
 
-| Operation | Target |
-|---|---|
-| Signature verification | ≤ 5 ms per signature |
-| Signature generation | ≤ 50 ms |
-| Signature size | ≤ 4 kB |
-| Public key size | ≤ 2 kB |
+### Relationship To Core EIP
 
-**Migration path.** The protocol MUST define a concrete, time-bound migration path:
-
-1. **Opt-in phase.** PQ signature types are supported alongside existing ECDSA/BLS. Accounts MAY migrate voluntarily.
-2. **Default phase.** New accounts default to PQ signatures. Existing accounts receive a migration incentive window of at least 4 years.
-3. **Deprecation phase.** Classical signature types are deprecated with at least 2 years' notice and removed in a designated simplification hard fork.
-
-Account abstraction (EIP-4337 or equivalent) MUST be the migration mechanism: accounts transition by updating their verification logic, not by changing the address derivation. This avoids forced re-registration.
-
-**Design goal.** "Secure for 100 years" MUST be a realistic design goal, not a slogan. Any signature scheme activated at the protocol level MUST have a published security analysis projecting resistance to both classical and quantum attack for at least 100 years at current algorithmic knowledge.
-
----
-
-### Edge Verification As Default
-
-**Requirement.** Verified RPC MUST be the default UX for wallets, not an opt-in feature.
-
-**Principle.** A wallet or client that receives a response from an untrusted RPC endpoint MUST treat that response as unverified input and locally verify the corresponding state proof before using it for stateful decisions, transaction construction, or final UI claims. Wallets or clients that do not verify are violating this requirement.
-
-**Verification mechanisms.** Wallets MUST support at least one of:
-
-- **ZK-EVM verification:** verify a succinct proof of state transitions locally (e.g., SP1, Risc0, or equivalent).
-- **Helios-style light client:** verify block headers against the sync committee, then verify state proofs against the verified header.
-- **Full local node:** the wallet runs or is directly connected to a locally verified full node.
-
-The PBT defined in this EIP is designed to make the second option significantly cheaper: a single stem opening serves the hot state of a typical account, reducing the data required for a Helios-style state proof from many independent trie paths to one stem proof.
-
-**RPC trust model.** Wallets MUST clearly communicate to users whether an RPC response has been locally verified. Unverified data MUST be visually distinguished in wallet UIs and MUST be surfaced in an explicit "unverified" mode for any value not checked locally. The phrase "verified" in a wallet UI MUST mean locally verified, not "from a trusted provider."
-
-**Consumer hardware guarantee.** The protocol MUST be designed so that a mid-range smartphone can run meaningful local verification — not merely light-client heuristics — for all state queries that a typical user makes. See the resource budgets in the Full Verification section above.
-
----
-
-### Privacy Queries And Oblivious Access
-
-**Requirement.** Balance queries, log retrieval, and history lookups MUST be serviceable without leaking user behaviour to infrastructure providers.
-
-**Threat model.** An adversary operating an RPC provider can observe:
-
-- which addresses a wallet queries,
-- the timing and frequency of those queries,
-- correlations between query patterns and transaction broadcast.
-
-This is sufficient to deanonymise users with high confidence, even without access to private keys.
-
-**Required mechanisms.** Reference wallet and client designs MUST integrate at least one of the following privacy-preserving query mechanisms:
-
-| Mechanism | Description |
-|---|---|
-| Private Information Retrieval (PIR) | the server answers a query without learning which item was requested |
-| Oblivious RAM (ORAM) | access patterns are hidden from the server entirely |
-| Mixnet routing | queries are routed through a mix network before reaching the RPC endpoint |
-| Redundant multi-provider queries | queries are sent to multiple independent providers and results are compared; no single provider sees the full query pattern |
-
-At minimum, reference wallet implementations MUST support redundant multi-provider queries as a baseline for balance, history, and log lookups, such that no single provider observes the full query pattern of a session. PIR or ORAM integration is RECOMMENDED for production wallets handling sensitive financial data and SHOULD be preferred where practical.
-
-**Privacy payments.** "Privacy payments that feel like normal payments" MUST be a core UX goal, not a feature limited to specialised applications. Specifically:
-
-- Account abstraction MUST be the mechanism for integrating privacy-preserving payment flows (e.g., stealth addresses, note-based schemes).
-- The base protocol MUST not penalise privacy-preserving transactions with disproportionate gas costs relative to equivalent transparent transactions.
-- Reference wallet UX MUST treat privacy-preserving payment as an option available within one tap, not buried in advanced settings.
-
----
-
-### Social Recovery And Time-Locks As Default
-
-**Requirement.** Social recovery wallets and time-locks MUST be the default account type, not a niche configuration.
-
-**Account abstraction mandate.** The base protocol MUST treat account abstraction as the standard account model. The default account type presented to new users MUST include:
-
-- a configurable guardian set for social recovery,
-- a time-lock on large outgoing transfers (configurable, minimum 24 hours by default),
-- a recovery path that does not require on-chain disclosure of the guardian set until recovery is invoked.
-
-**Base-protocol support.** Protocol changes that improve the efficiency of social recovery and time-lock patterns (e.g., cheaper batched guardian signature verification, native time-lock opcodes) MUST be prioritised over features that primarily benefit custodial workflows.
-
-**Key theft resistance.** The default account type MUST be designed so that theft of the signing key alone is insufficient to drain the account without the time-lock expiring. This requires that:
-
-- time-locked transfers be cancellable by the signing key before the lock expires,
-- social recovery guardians be able to cancel a pending transfer and freeze the account if key theft is detected.
-
----
-
-### Censorship Resistance And Inclusion Guarantees
-
-**Requirement.** Censorship resistance MUST be an enforced property of block production, not a social ideal.
-
-**Fork-Choice Enforced Inclusion Lists (FOCIL).** The protocol MUST adopt a mechanism equivalent to FOCIL or stronger, such that:
-
-- a designated set of inclusion-list contributors publish the set of transactions that MUST be included in the next block,
-- a block that omits a transaction present in the inclusion list is invalid (not merely penalised),
-- the inclusion list contributor set is sufficiently large and randomised that a single actor cannot suppress a transaction without controlling an implausibly large share of the validator set.
-
-**MEV and ordering fairness.** The protocol SHOULD adopt constraints on block-building that limit the ability of proposers and builders to reorder transactions for extractable value in ways that harm ordinary users. Specifically:
-
-- Transactions from the public mempool MUST have a guaranteed inclusion path that does not depend on tipping a specific builder.
-- The protocol SHOULD define a "fair ordering" window: within a defined time window, transactions with equal effective fees SHOULD be included in arrival order at the relay level.
-- MEV redistribution mechanisms (e.g., attester-proposer separation, MEV burn) are RECOMMENDED and MUST be evaluated against the decentralisation metrics defined above before activation.
-
-**Censorship measurement.** The Ethereum Foundation or a designated neutral body MUST publish monthly censorship resistance metrics, including:
-
-- the fraction of OFAC-listed (or equivalently-flagged) transactions that were delayed more than one slot,
-- the distribution of inclusion latency by transaction type,
-- the fraction of blocks built by the top-3 builders.
-
----
-
-### Formal Verification And AI-Assisted Proofs
-
-**Requirement.** Formal verification of protocol-critical code is a first-class development requirement, not a post-hoc audit activity.
-
-**Scope.** The following categories of code MUST have machine-checked proofs before activation:
-
-| Category | Required proof properties |
-|---|---|
-| Consensus rules (fork choice, finality) | safety and liveness under the assumed network model |
-| EVM opcodes and precompiles | correct state-transition semantics; no undefined behaviour |
-| Critical system contracts (deposit contract, withdrawal queue) | invariant preservation under all reachable inputs |
-| The PBT insertion and deletion algorithms defined in this EIP | canonical form preservation; no duplicate keys |
-
-**AI-assisted proof generation.** AI-generated proofs are PERMITTED as a helper tool, subject to the following constraints:
-
-- AI-generated proof steps MUST be checked by a mechanised proof assistant (e.g., Lean 4, Coq, Isabelle/HOL). An AI-generated proof that has not been machine-checked does not satisfy this requirement.
-- Proof artifacts MUST be reproducibly re-checkable by independent implementations of the chosen proof assistant toolchain.
-- The canonical proof language standardised by this EIP MUST be usable as the output format for AI-generated proofs, so that proofs can be re-checked independently.
-- AI tools used in the proof pipeline MUST be disclosed in the EIP. The proof MUST be reproducible without the specific AI tool used to generate it.
-
-**Proof tooling pipeline.** A standard tooling pipeline MUST be maintained as part of the Ethereum development infrastructure:
-
-- A CI system that re-checks all published proofs on every spec change.
-- A library of reusable proof components for common EVM and PBT properties.
-- Public proof dashboards showing the current verified coverage of each protocol component.
-
-**Verifiability budget (extended).** As defined in the Formal Verification section above, the verifiability budget measures the proof complexity cost of a feature. The budget MUST be denominated in terms of:
-
-- lines of proof code required in the canonical proof language,
-- number of new lemmas introduced that have no prior counterparts in the proof library,
-- estimated human review time for the proof.
-
-Features with a verifiability-budget cost above a defined threshold MUST be reviewed by at least two independent proof engineers before activation.
-
----
-
-### Trust-Minimised Cross-Chain Interoperability
-
-**Requirement.** Cross-chain bridges and interoperability mechanisms MUST be simple, verifiable, and trust-minimised. Opaque, highly centralised bridges are not acceptable as ecosystem infrastructure.
-
-**Bridge security tiers.** The protocol MUST define and publish a bridge security tier system:
-
-| Tier | Description | Required for |
-|---|---|---|
-| Tier 1 (native) | validity-proof-backed; no external trust assumptions | canonical L1↔L2 bridges |
-| Tier 2 (optimistic) | fraud-proof-backed; ≥ 7-day dispute window; DA on-chain | L2↔L2 bridges for EVM-equivalent chains |
-| Tier 3 (light-client) | cross-chain light client with ZK header proofs | non-EVM chains |
-| Tier 4 (multisig) | off-chain multisig or committee | NOT ACCEPTABLE for any bridge handling > $10M TVL |
-
-Tier 4 bridges MUST NOT be endorsed or linked from official Ethereum ecosystem resources.
-
-**Self-sovereignty preservation.** Interoperability features MUST preserve the user's ability to:
-
-- verify the state of any chain they are interacting with independently,
-- exit a chain or bridge without the cooperation of any third party (forced exit guarantee),
-- receive assets on the destination chain using the same key material as on the source chain, without registering with a third party.
-
-**Trust-minimised messaging standard.** A canonical cross-chain message format MUST be standardised. The format MUST:
-
-- include a ZK proof or fraud proof of the source-chain state,
-- be verifiable on the destination chain without external oracles,
-- have a formally verified reference implementation published alongside the standard.
-
-**Interoperability and verification alignment.** All cross-chain interoperability features MUST be evaluated against the edge-verification requirement above: a mid-range smartphone MUST be able to verify cross-chain state independently, not merely accept an attestation from a relayer.
+This proposal is companion guidance for rollout and policy. Consensus-critical expiry rules MUST be finalized in a dedicated companion EIP and activated through normal hard-fork coordination.
 
 ---
 
@@ -775,6 +852,8 @@ def _delete(node: Node, stem_prefix: bytes, subindex: int, depth: int) -> Node:
 ### Proof Generation And Verification
 
 A Merkle proof for key $k$ in a tree with root hash $R$ is a sequence of sibling hashes along the path from the root to the `StemNode` containing $k$, plus the full `StemNode` values (or a subset, for multi-key proofs).
+
+`tree_hash` MUST be deterministic over raw bytes and return exactly 32 bytes. Implementations MUST domain-separate at least empty-node, internal-node, and stem payload hashing domains.
 
 ```python
 from dataclasses import dataclass, field
@@ -835,8 +914,8 @@ def verify_proof(root_hash: bytes, proof: MerkleProof) -> bool:
 
 ```python
 def _hash_stem(stem_prefix: bytes, values: list[bytes]) -> bytes:
-    # Commit to the stem prefix and all 256 values in a single hash.
-    payload = stem_prefix + b"".join(values)
+    # Domain-separated commitment to stem prefix and all 256 values.
+    payload = b"PBT:STEM:v1" + stem_prefix + b"".join(values)
     return tree_hash(payload)
 ```
 
@@ -853,9 +932,38 @@ def _node_hash(node: Node) -> bytes:
 
 Multi-key proofs MAY share path prefixes and stem nodes; the proof format for multi-key witnesses is out of scope for this EIP but MUST be compatible with the single-key proof above.
 
-### Privacy-Respecting Stem Subscription
+A compatible multi-proof SHOULD include:
 
-#### EIP-7864 Add-On: Stem Subscription and Oblivious Witness Delivery
+- deduplicated sibling hash set,
+- explicit key-to-path index mapping,
+- stem payload commitments (full or subset + commitment proof),
+- deterministic ordering rules for all variable-length arrays.
+
+### Multi-Key And Batch Proof Standard (Draft Profile, Non-Consensus)
+
+To align with real wallet and block-witness workloads, implementations SHOULD support a canonical batch-proof profile with:
+
+- deduplicated internal sibling set across all requested keys,
+- canonical key ordering (lexicographic by full key bytes),
+- explicit key-to-stem and key-to-path index tables,
+- deterministic serialization for batch payloads.
+
+Batch proofs SHOULD target minimal repetition of shared path and stem material while remaining locally verifiable with the same root-anchored verifier rules as single-key proofs.
+
+### Witness Compression Wrapper (Optional, Non-Consensus)
+
+Implementations MAY wrap canonical witness payloads in an optional SNARK/STARK compression envelope for ultra-small transport footprints.
+
+When enabled, compressed witness responses MUST include:
+
+- commitment to the exact canonical witness payload bytes,
+- proof system identifier and version,
+- verifier metadata sufficient for local verification,
+- fallback path to canonical uncompressed witness material.
+
+### Private Stem Retrieval (Optional Add-On)
+
+#### EIP-7864 Add-On: Private Stem Retrieval and Witness Distribution Primitive
 
 ##### Abstract
 
@@ -891,6 +999,41 @@ This section specifies a minimal protocol path for obtaining and verifying relev
 
 The path is normative at the interface level (commitment, bundle, proof verification, validation rules) and intentionally non-prescriptive about transport internals. Implementations MAY choose different transport substrates as long as privacy and verification requirements in this section are preserved.
 
+##### Minimal Verified-RPC Companion Protocol
+
+A companion interface SHOULD standardize verified witness delivery over JSON-RPC with methods such as:
+
+- `eth_getVerifiedProof`
+- `eth_getStemWitness`
+
+For ecosystem convergence, clients SHOULD additionally standardize aliases geared to app-facing integration:
+
+- `eth_getStemProof`
+- `eth_getVerifiedState`
+
+Responses SHOULD include, at minimum:
+
+- requested state payload,
+- PBT proof payload,
+- block-header linkage needed to verify root consistency,
+- explicit versioning and serialization commitments.
+
+Wallets and client SDKs SHOULD treat these responses as untrusted witness data until local verification succeeds.
+
+##### Adaptive Private Retrieval Profile (Normative Add-On Profile, Non-Consensus Core)
+
+Implementations conforming to this add-on profile MUST:
+
+- attempt retrieval from at least two independent providers before accepting single-provider failure as terminal,
+- enforce bounded retry budgets and deterministic fallback widening rules,
+- keep verification as the acceptance boundary for all retries and provider combinations.
+
+Implementations SHOULD:
+
+- widen both provider set and bucket coverage under under-quorum conditions,
+- include optional cover fetches for stronger query-pattern privacy,
+- persist reliability telemetry to improve future retrieval plans without weakening correctness checks.
+
 ##### Trust Model
 
 The primitive MUST NOT introduce new trusted parties. Witness providers, relays, brokers, bulletin layers, and storage layers are untrusted transport surfaces.
@@ -917,6 +1060,19 @@ The primitive MUST remain optional and MUST NOT modify canonical tree structure,
 The primitive MUST be composable: clients MAY use it alongside existing RPC/state-sync mechanisms, and implementations MUST NOT require a dedicated global coordinator to participate.
 
 Implementations MUST support local verification by default: delivered witness data are untrusted until proof checks pass. If checks fail or data are incomplete, the client MUST reject and retry via another transport/provider path.
+
+Implementations SHOULD use adaptive fallback by default (for example, widening provider sets, widening bucket scans, and enforcing bounded retry budgets) so temporary under-delivery does not silently degrade correctness or privacy posture.
+
+##### Hot Stem Caching And Adaptive Retrieval
+
+Clients SHOULD maintain a small local cache of recently verified hot stems (for example, account headers and frequently used storage stems) to reduce repeated branch openings and improve UX latency.
+
+Recommended retrieval behavior:
+
+- begin with a narrow provider set and small bucket window,
+- widen provider and bucket selection on under-quorum or malformed responses,
+- use configurable quorum thresholds for correctness under partial failure,
+- optionally include dummy/cover fetches for stronger query-pattern privacy.
 
 Implementations SHOULD ensure that no single server learns the full query pattern of a client session; redundant retrieval, oblivious retrieval, or equivalent privacy-preserving composition SHOULD be used to meet this objective.
 
@@ -1091,11 +1247,15 @@ The PBT introduces a **stem-aware** access cost model. Within a single transacti
 | Writing a new leaf (previously `EMPTY_VALUE`) | `WITNESS_CHUNK_COST + WRITE_NEW_LEAF_COST` |
 | Updating an existing leaf | `WITNESS_CHUNK_COST` |
 
-Exact values for `WITNESS_BRANCH_COST`, `WITNESS_CHUNK_COST`, and `WRITE_NEW_LEAF_COST` are defined in the accompanying gas-repricing EIP and are not set here. The accounting rule that MUST hold is:
+Exact values for `WITNESS_BRANCH_COST`, `WITNESS_CHUNK_COST`, and `WRITE_NEW_LEAF_COST` are defined in companion gas-repricing EIP `EIP-XXXX` and are not set here. The accounting rule that MUST hold is:
 
 > If two accesses to the same `(storage_type, tree_position)` occur in the same transaction, only the first pays `WITNESS_BRANCH_COST`.
 
 This rule is the protocol-level expression of the locality guarantee: co-locating data in a stem makes repeated access cheaper, creating an economic incentive for contracts to use sequential key layouts.
+
+Implementations MAY define an additional reduced read cost for accesses that hit stems already proven and cached within the same block execution context, provided consensus-equivalence and deterministic accounting rules are preserved.
+
+Any such cache-hit discount MUST be conditioned on successful local verification of the corresponding stem proof in that block execution context; unverified cache entries MUST NOT receive verification-path pricing.
 
 ### State Migration
 
@@ -1120,7 +1280,25 @@ def migrate_account(mpt_account: MPTAccount) -> None:
 
 **Phase 2 (post-fork).** All new state writes go directly to the PBT. The MPT is read-only for historical proof purposes only. Clients MAY prune the MPT after a sufficient number of blocks (suggested: 8192 blocks after the fork).
 
-The conversion MUST produce a deterministic PBT root from any valid MPT state. Test vectors MUST be published alongside the EIP to allow independent verification of the migration output.
+The conversion MUST produce a deterministic PBT root from any valid MPT state. Test vectors MUST be published alongside the EIP to allow independent verification of migration output.
+
+At minimum, vectors SHOULD include:
+
+- small deterministic fixtures for unit-level reproducibility,
+- synthetic high-variance account sets (code-heavy and storage-heavy),
+- a reproducible snapshot-derived fixture representative of mainnet structure.
+
+## Activation And Coordination
+
+Activation of this EIP requires coordinated inclusion with:
+
+- gas repricing companion EIP (`EIP-XXXX`),
+- client sync/proof RPC adaptation work,
+- finalized hash function selection process.
+
+Fork planning SHOULD include at least one interop testnet phase with published migration vectors, proof conformance vectors, and cross-client root equivalence checks.
+
+Rollout SHOULD include early implementation collaboration with major wallet teams and SDK maintainers so verified reads are default behavior at launch.
 
 ---
 
@@ -1142,16 +1320,22 @@ Clients MUST continue to serve MPT proofs for pre-fork blocks. State sync for po
 
 ## Security Considerations
 
+### Poseidon2 Parameter Governance
+
+Before activation of any Poseidon2-based network profile, the exact Poseidon2 parameter set MUST be audited, standardized, and covered by conformance vectors.
+
+Clients MUST reject unknown hash identifiers for consensus paths and MUST NOT silently downgrade to a different hash profile.
+
 ### Pre-Image Resistance
 
 The security of the PBT depends on the pre-image resistance of the hash function used for `tree_position` derivation. An adversary who can find `hash(x) = hash(y)` for `x ≠ y` could place two accounts at the same stem, causing a collision. The hash function MUST have at least 128-bit pre-image resistance.
 
 ### Anti-DoS Key Construction
 
-The double-hash construction for storage `tree_position`:
+The domain-separated double-hash construction for storage `tree_position`:
 
 ```
-hash(address) + hash(address + int_to_bytes32(high))
+hash(STORAGE_DOMAIN + address) + hash(STORAGE_DOMAIN + address + int_to_bytes32(high))
 ```
 
 ensures that an adversary cannot arrange two contracts to share a `tree_position` without knowing a pre-image collision. The secondary hash `hash(address + int_to_bytes32(high))` is distinct for every `(address, page)` pair.
@@ -1167,6 +1351,16 @@ The hash function is a deployment parameter. Changing the hash function after ac
 ### Witness Completeness
 
 A stateless verifier executing a transaction MUST receive a witness that covers every stem accessed during execution. An incomplete witness allows an attacker to present a block that appears valid to a verifier that does not know the missing state. Execution clients MUST reject blocks whose witnesses are incomplete with respect to the EVM trace.
+
+### Denial-Of-Service Surfaces
+
+Implementations SHOULD evaluate and harden against:
+
+- adversarial stem packing that maximizes branch churn,
+- pathological proof payload inflation for malformed or redundant data,
+- retrieval-layer amplification attacks in optional witness distribution paths.
+
+Rate limits, canonical serialization checks, bounded retries, and strict proof-shape validation are RECOMMENDED mitigations.
 
 ---
 
@@ -1218,6 +1412,14 @@ assert verify_proof(root_hash(root), tampered) is False
 
 Full test vector files (including migration vectors from MPT state) MUST be published in the EIP's `assets/` directory before this EIP moves to Final status.
 
+Hash-profile vectors SHOULD also include:
+
+- deterministic root and proof verification vectors under `blake3`,
+- deterministic root and proof verification vectors under Poseidon2 (once finalized),
+- compatibility checks confirming identical tree structure and key-path behavior across hash profiles for the same state.
+
+Vectors SHOULD label the active `hash_id` explicitly so cross-client comparisons are never performed across mismatched hash profiles.
+
 ---
 
 ## Reference Implementation
@@ -1231,9 +1433,21 @@ A reference implementation in Python is maintained at [`pbt/`](./pbt/) in this r
 | `pbt/nodes.py` | `EmptyNode`, `InternalNode`, `StemNode` |
 | `pbt/tree.py` | `insert`, `delete`, `get`, `root_hash`, `get_proof`, `verify_proof` |
 | `pbt/embedding.py` | Ethereum-specific key derivation and leaf encoding |
+| `pbt/metadata.py` | reserved metadata encoding/decoding helpers and layout checks |
+| `pbt/stem_subscription.py` | private stem retrieval, witness wire formats, and local verification flow |
+| `pbt/verified_rpc.py` | minimal proof-carrying verified-RPC companion protocol helpers |
+| `pbt/gas.py` | verification-aware stem gas accounting model |
+| `pbt/proving_profiles.py` | circuit-cost, Binius integration, recursive STARK estimators, and markdown report helpers |
+| `pbt/minimal_verifier.py` | consumer-hardware verification budget targets and evaluator helpers |
+| `pbt/witness_compression.py` | optional canonical witness compression envelope helpers |
+| `pbt/wallet.py` | wallet-side local-verification UX and transfer safety helpers |
+| `pbt/formal.py` | formal-verification release policy checks |
+| `pbt/formal_dashboard.py` | formal-verification readiness dashboard snapshot/rendering |
 | `tests/` | property-based and unit tests covering all test cases above |
 
-The reference implementation is normative for tie-breaking in cases where this document is ambiguous. It MUST stay within the phone-grade resource budgets defined in the Broader Protocol Requirements section.
+The reference Python implementation remains the normative behavior model. A Rust implementation with Poseidon2 acceleration is RECOMMENDED for performance-sensitive prover environments.
+
+The reference implementation is normative for tie-breaking in cases where this document is ambiguous. Broader performance and ecosystem targets are discussed in [ETHEREUM_EVOLUTION_PRINCIPLES.md](ETHEREUM_EVOLUTION_PRINCIPLES.md).
 
 ## Demo Trace (Adaptive Fallback)
 
@@ -1243,6 +1457,7 @@ Run it locally:
 
 ```bash
 python demo.py
+python cli.py formal_dashboard
 ```
 
 Example trace (abridged):
@@ -1261,18 +1476,36 @@ Provider reliability snapshot:
 
 This trace illustrates the intended behavior: an initial under-quorum response triggers broader provider/bucket selection, and correctness remains determined by local proof checks rather than provider trust.
 
+## Phone-Grade User Story
+
+A user on a mid-range Android device opens a wallet and checks balances, token approvals, and NFT ownership.
+
+1. The wallet queries one or more witness providers for state payloads plus proof material.
+2. The wallet verifies header linkage and PBT proofs locally.
+3. Frequently accessed stems are cached for fast follow-up checks.
+4. If provider responses are incomplete or conflicting, the wallet widens retrieval and retries automatically.
+5. The UI displays values only after local verification, with explicit status when data are pending or unverified.
+
+The result is practical day-to-day UX with a trust model anchored in local verification rather than provider reputation.
+
+## Optional High-Impact Research Tracks (Non-Consensus)
+
+The following options are intentionally exploratory but high leverage:
+
+- Optional quantum-resistant profile mode at launch (for example, alternative hash profile track with explicit tradeoffs).
+- Data availability sampling hooks for future sharding and witness-distribution synergy.
+- Witness-size-sensitive burn component, where a small fraction of large witness-related gas is burned to internalize network footprint costs.
+
 ---
 
 ## Open Questions
 
-- Final hash function choice (BLAKE3, Keccak-256, or Poseidon2) and the process for finalising it.
-- Whether metadata bits live in reserved leaf indices or a dedicated `storage_type` range.
-- Canonical proof language selection for the formal verification requirement.
-- Precise definition and tooling for the verifiability budget.
-- Exact resource-budget figures for the phone-grade full verifier as device capabilities evolve.
-- Multi-key witness format and its interaction with the single-key proof defined above.
-- Snap-sync protocol adaptation for PBT stem structure.
-- Mechanism for triggering the sequencer decentralisation requirement at the protocol level vs. ecosystem level.
+1. Hash function finalization process and criteria (security margin, ARM/mobile performance, circuit cost, 32-byte output commitment).
+2. Metadata placement finalization: reserved subindex space, reserved `storage_type` range, or hybrid.
+3. Multi-key proof format standardization compatible with the single-key proof model.
+4. Snap/fast-sync adaptation for PBT stems and proof transport.
+5. Final gas constants and cache-aware accounting semantics in `EIP-XXXX`.
+6. Optional add-on naming and deployment profile defaults for private stem retrieval.
 
 ---
 
