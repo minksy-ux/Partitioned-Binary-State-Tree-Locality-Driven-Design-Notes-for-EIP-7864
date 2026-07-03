@@ -28,6 +28,9 @@ jobs:
       - name: Validate network readiness manifest
         run: python scripts/validate_network_readiness.py
 
+      - name: Validate release notes policy
+        run: python scripts/validate_release_notes.py
+
       - name: Run Python tests
         run: pytest -q
 

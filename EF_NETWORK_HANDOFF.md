@@ -45,6 +45,7 @@ This document defines what an Ethereum client team (or EF research/engineering t
 This repository now includes a CI gate (`.github/workflows/network-readiness.yml`) that:
 
 - validates `network-readiness.manifest.json` policy gates,
+- validates release-notes policy from `RELEASE_NOTES.md`,
 - runs Python tests
 - runs Rust tests
 - builds a deterministic release bundle for EF/client review
@@ -58,6 +59,21 @@ The file [network-readiness.manifest.json](network-readiness.manifest.json) is t
 - CI validates the manifest through [scripts/validate_network_readiness.py](scripts/validate_network_readiness.py).
 
 To mark production eligibility, update gate statuses to `complete`/`waived` with evidence and set `release_decision.production_eligible` to `true`.
+
+## Release Notes Policy Gate
+
+The file [RELEASE_NOTES.md](RELEASE_NOTES.md) is validated by [scripts/validate_release_notes.py](scripts/validate_release_notes.py).
+
+Required sections:
+
+- `Release Scope`
+- `Security Review`
+- `Audit Evidence`
+- `Client Compatibility`
+- `Activation Scope`
+- `Rollback Plan`
+
+When `production_eligible=true`, CI requires non-placeholder content for all required sections.
 
 ## Release Bundle
 
