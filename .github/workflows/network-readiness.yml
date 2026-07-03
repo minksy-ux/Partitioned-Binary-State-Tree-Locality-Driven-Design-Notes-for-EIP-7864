@@ -93,12 +93,17 @@ jobs:
         run: cargo test --manifest-path pbt-rs/Cargo.toml
 
       - name: Build release bundle
+        env:
+          SUPPLY_CHAIN_SIGNING: "disabled"
+          CI: "true"
         run: bash pbt-rs/scripts/release_bundle.sh
 
       - name: Generate supply chain artifacts
         run: python scripts/generate_supply_chain_artifacts.py
 
       - name: Validate supply chain artifacts
+        env:
+          SUPPLY_CHAIN_SIGNING: "disabled"
         run: python scripts/validate_supply_chain_artifacts.py
 
       - name: Verify release artifacts

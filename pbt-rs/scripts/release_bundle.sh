@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 RUST_DIR="$ROOT_DIR/pbt-rs"
+SIGNING_MODE="${SUPPLY_CHAIN_SIGNING:-enabled}"
 
 mkdir -p "$DIST_DIR"
 
@@ -20,6 +21,12 @@ if command -v pytest >/dev/null 2>&1; then
   pytest -q
 else
   echo "pytest not found; skipping Python test run" >&2
+fi
+
+if [[ "${CI:-}" == "true" && "$SIGNING_MODE" == "enabled" ]] && \
+   ! (command -v gpg >/dev/null 2>&1 && gpg --list-secret-keys --with-colons 2>/dev/null | grep -q '^sec'); then
+  echo "supply-chain: WARN: signing requested but no key in CI; falling back to unsigned bundle"
+  SIGNING_MODE="disabled"
 fi
 
 TARBALL="$DIST_DIR/pbt-rs-source.tar.gz"
@@ -103,8 +110,14 @@ for artifact in manifest.get("artifacts", []):
 manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 PY
 
-# Attempt detached signatures; if unavailable, emit explicit placeholder status.
-if command -v gpg >/dev/null 2>&1 && gpg --list-secret-keys --with-colons 2>/dev/null | grep -q '^sec'; then
+# Attempt detached signatures when enabled; otherwise emit explicit placeholder status.
+if [[ "$SIGNING_MODE" != "enabled" ]]; then
+  {
+    echo "signing: unavailable"
+    echo "reason: disabled by SUPPLY_CHAIN_SIGNING=$SIGNING_MODE"
+    echo "action: set SUPPLY_CHAIN_SIGNING=enabled with a configured signing key"
+  } > "$SIGNING_STATUS_FILE"
+elif command -v gpg >/dev/null 2>&1 && gpg --list-secret-keys --with-colons 2>/dev/null | grep -q '^sec'; then
   if gpg --armor --detach-sign --output "$MANIFEST_SIG_FILE" "$MANIFEST_FILE" >/dev/null 2>&1 && \
      gpg --armor --detach-sign --output "$TARBALL_SIG_FILE" "$TARBALL" >/dev/null 2>&1; then
     {

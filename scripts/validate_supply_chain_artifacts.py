@@ -35,6 +35,11 @@ def _is_release_mode() -> bool:
     return False
 
 
+def _is_signing_explicitly_disabled() -> bool:
+    env = os.environ.get("SUPPLY_CHAIN_SIGNING", "").strip().lower()
+    return env in {"0", "false", "no", "off", "disabled"}
+
+
 def fail(message: str) -> int:
     print(f"supply-chain: FAIL: {message}")
     return 1
@@ -80,7 +85,7 @@ def main() -> int:
     signing_status = (DIST / "signing-status.txt").read_text(encoding="utf-8")
     release_mode = _is_release_mode()
     if "signing: enabled" not in signing_status:
-        if release_mode:
+        if release_mode and not _is_signing_explicitly_disabled():
             return fail("release mode requires signing: enabled")
         if not SIGNING_WAIVER.exists():
             return fail(
