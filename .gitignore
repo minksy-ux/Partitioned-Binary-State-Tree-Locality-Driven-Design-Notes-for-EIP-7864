@@ -5,3 +5,8 @@ __pycache__/
 # Test and tooling caches
 .pytest_cache/
 .hypothesis/
+.mypy_cache/
+.ruff_cache/
+
+# Rust build output
+pbt-rs/target/
