@@ -1,4 +1,5 @@
 use pbt_rs::{
+    Blake3Hasher,
     build_vector_fold_proof,
     decode_vector_fold_proof_bincode,
     decode_vector_fold_proof_json,
@@ -67,4 +68,14 @@ fn vector_fold_proof_tamper_is_detected() {
     }
 
     assert!(!verify_vector_fold_proof(&proof));
+}
+
+#[test]
+fn vector_fold_mode_mismatch_is_rejected() {
+    let mut tree = Tree::new(Blake3Hasher);
+    let key = key(0x77, 0x08);
+    tree.insert(&key, [0x44; 32]).expect("insert should succeed");
+
+    let result = build_vector_fold_proof(&tree, &key, ProofMode::GeminiHash);
+    assert!(result.is_err());
 }

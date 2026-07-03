@@ -12,6 +12,7 @@ Implemented now:
 - Ethereum embedding key derivation helpers
 - MPT-account migration helper (fixture-oriented)
 - Proof format bindings (JSON + bincode)
+- Compressed proof format bindings (gzip-compressed bincode)
 - WASM-compatible batch verification entry point
 - Property-based and round-trip tests
 

@@ -8,6 +8,13 @@ pub const EMPTY_VALUE: [u8; 32] = [0u8; 32];
 
 pub trait TreeHasher {
     fn hash(&self, input: &[u8]) -> [u8; 32];
+
+    fn hash_pair(&self, left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
+        let mut payload = Vec::<u8>::with_capacity(64);
+        payload.extend_from_slice(left);
+        payload.extend_from_slice(right);
+        self.hash(&payload)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -41,6 +48,10 @@ impl TreeHasher for ModeHasher {
             }
         }
         crate::hash::hash_bytes(input, self.mode)
+    }
+
+    fn hash_pair(&self, left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
+        crate::hash::tree_hash(left, right, self.mode)
     }
 }
 
@@ -408,11 +419,7 @@ fn hash_stem<H: TreeHasher>(stem_prefix: &[u8], values: &[[u8; 32]], hasher: &H)
 fn internal_hash(left: &Node, right: &Node, hasher: &impl TreeHasher) -> [u8; 32] {
     let left_hash = node_hash(left, hasher);
     let right_hash = node_hash(right, hasher);
-
-    let mut payload = Vec::<u8>::with_capacity(64);
-    payload.extend_from_slice(&left_hash);
-    payload.extend_from_slice(&right_hash);
-    hasher.hash(&payload)
+    hasher.hash_pair(&left_hash, &right_hash)
 }
 
 fn node_hash<H: TreeHasher>(node: &Node, hasher: &H) -> [u8; 32] {

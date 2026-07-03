@@ -1,6 +1,10 @@
 use crate::tree::{BatchMerkleProof, Tree, TreeHasher};
 use crate::{hash_stem, tree_hash, HashFunction, STEM_SUBTREE_WIDTH};
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::io::{Read, Write};
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum ProofMode {
@@ -100,6 +104,25 @@ fn vec_to_fixed_256(values: &[[u8; 32]]) -> Option<[[u8; 32]; 256]> {
     Some(out)
 }
 
+fn compress_bytes(raw: &[u8]) -> Result<Vec<u8>, String> {
+    let mut encoder = GzEncoder::new(Vec::<u8>::new(), Compression::best());
+    encoder
+        .write_all(raw)
+        .map_err(|err| format!("gzip encode write error: {err}"))?;
+    encoder
+        .finish()
+        .map_err(|err| format!("gzip encode finish error: {err}"))
+}
+
+fn decompress_bytes(encoded: &[u8]) -> Result<Vec<u8>, String> {
+    let mut decoder = GzDecoder::new(encoded);
+    let mut out = Vec::<u8>::new();
+    decoder
+        .read_to_end(&mut out)
+        .map_err(|err| format!("gzip decode error: {err}"))?;
+    Ok(out)
+}
+
 pub fn encode_batch_proof_json(batch: &BatchMerkleProof) -> Result<String, String> {
     serde_json::to_string(batch).map_err(|err| format!("json encode error: {err}"))
 }
@@ -114,6 +137,16 @@ pub fn encode_batch_proof_bincode(batch: &BatchMerkleProof) -> Result<Vec<u8>, S
 
 pub fn decode_batch_proof_bincode(data: &[u8]) -> Result<BatchMerkleProof, String> {
     bincode::deserialize(data).map_err(|err| format!("bincode decode error: {err}"))
+}
+
+pub fn encode_batch_proof_compressed(batch: &BatchMerkleProof) -> Result<Vec<u8>, String> {
+    let raw = encode_batch_proof_bincode(batch)?;
+    compress_bytes(&raw)
+}
+
+pub fn decode_batch_proof_compressed(data: &[u8]) -> Result<BatchMerkleProof, String> {
+    let raw = decompress_bytes(data)?;
+    decode_batch_proof_bincode(&raw)
 }
 
 pub fn verify_batch_proof_wasm<H: TreeHasher + Clone>(
@@ -166,6 +199,10 @@ pub fn build_vector_fold_proof<H: TreeHasher + Clone>(
             proof_data,
         });
         current = commitment;
+    }
+
+    if current != tree.root_hash() {
+        return Err("vector fold mode does not match tree hashing mode".to_string());
     }
 
     Ok(VectorFoldProof {
@@ -240,4 +277,14 @@ pub fn encode_vector_fold_proof_bincode(proof: &VectorFoldProof) -> Result<Vec<u
 
 pub fn decode_vector_fold_proof_bincode(data: &[u8]) -> Result<VectorFoldProof, String> {
     bincode::deserialize(data).map_err(|err| format!("bincode decode error: {err}"))
+}
+
+pub fn encode_vector_fold_proof_compressed(proof: &VectorFoldProof) -> Result<Vec<u8>, String> {
+    let raw = encode_vector_fold_proof_bincode(proof)?;
+    compress_bytes(&raw)
+}
+
+pub fn decode_vector_fold_proof_compressed(data: &[u8]) -> Result<VectorFoldProof, String> {
+    let raw = decompress_bytes(data)?;
+    decode_vector_fold_proof_bincode(&raw)
 }

@@ -1,11 +1,20 @@
 use pbt_rs::{
     decode_batch_proof_bincode,
+    decode_batch_proof_compressed,
     decode_batch_proof_json,
+    decode_vector_fold_proof_compressed,
+    encode_batch_proof_compressed,
     encode_batch_proof_bincode,
     encode_batch_proof_json,
+    encode_vector_fold_proof_compressed,
+    build_vector_fold_proof,
     verify_batch_proof_wasm,
+    verify_vector_fold_proof,
     get_tree_key,
     Blake3Hasher,
+    HashFunction,
+    ModeHasher,
+    ProofMode,
     Tree,
     HEADER_SUBTREE,
 };
@@ -37,4 +46,27 @@ fn batch_proof_json_and_bincode_round_trip() {
     let bin = encode_batch_proof_bincode(&batch).expect("bincode encode should succeed");
     let decoded_bin = decode_batch_proof_bincode(&bin).expect("bincode decode should succeed");
     assert!(verify_batch_proof_wasm(&tree, root, &decoded_bin));
+
+    let compressed =
+        encode_batch_proof_compressed(&batch).expect("compressed encode should succeed");
+    let decoded_compressed =
+        decode_batch_proof_compressed(&compressed).expect("compressed decode should succeed");
+    assert!(verify_batch_proof_wasm(&tree, root, &decoded_compressed));
+}
+
+#[test]
+fn vector_fold_compressed_round_trip() {
+    let mut tree = Tree::new(ModeHasher {
+        mode: HashFunction::Gemini,
+    });
+    let key = get_tree_key(HEADER_SUBTREE, &[0x09; 32], 9);
+    tree.insert(&key, val(99)).expect("insert should succeed");
+
+    let proof = build_vector_fold_proof(&tree, &key, ProofMode::GeminiHash)
+        .expect("vector fold proof generation should succeed");
+    let encoded =
+        encode_vector_fold_proof_compressed(&proof).expect("compressed encode should succeed");
+    let decoded =
+        decode_vector_fold_proof_compressed(&encoded).expect("compressed decode should succeed");
+    assert!(verify_vector_fold_proof(&decoded));
 }
