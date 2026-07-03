@@ -37,6 +37,9 @@ jobs:
       - name: Build release bundle
         run: bash pbt-rs/scripts/release_bundle.sh
 
+      - name: Verify release artifacts
+        run: python scripts/verify_release_artifacts.py
+
       - name: Upload release bundle artifacts
         uses: actions/upload-artifact@v4
         with:

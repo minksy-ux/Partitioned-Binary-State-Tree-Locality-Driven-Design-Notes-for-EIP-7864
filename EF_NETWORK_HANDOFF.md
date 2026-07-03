@@ -65,6 +65,7 @@ Run:
 
 ```bash
 bash pbt-rs/scripts/release_bundle.sh
+python scripts/verify_release_artifacts.py
 ```
 
 Artifacts written to `dist/`:
@@ -78,6 +79,12 @@ Artifacts written to `dist/`:
 - `pbt-rs-source.tar.gz.sig` (when signing is configured)
 
 The release manifest records commit provenance and artifact checksums. Detached signatures are generated when a GPG secret key is available in the environment.
+
+The verifier script enforces:
+
+- checksum integrity between files and release-manifest.json,
+- signing-state consistency (enabled vs unavailable/failed),
+- required bundle artifact presence before handoff.
 
 ## What EF/Client Teams Can Do Next
 
