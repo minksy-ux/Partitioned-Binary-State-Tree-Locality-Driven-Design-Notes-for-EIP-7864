@@ -1,5 +1,11 @@
 name: Network Readiness
 
+# Note: Keep these action major versions Node 24-compatible.
+# - actions/checkout@v5+
+# - actions/setup-python@v6+
+# - actions/upload-artifact@v5+
+# This avoids Node 20 deprecation warnings on GitHub-hosted runners.
+
 on:
   push:
     branches: [main, master]
