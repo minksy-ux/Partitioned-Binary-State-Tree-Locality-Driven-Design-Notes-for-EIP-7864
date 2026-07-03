@@ -43,8 +43,19 @@ jobs:
       - name: Verify release artifacts
         run: python scripts/verify_release_artifacts.py
 
+      - name: Build EF handoff package
+        run: python scripts/build_ef_handoff.py
+
       - name: Upload release bundle artifacts
         uses: actions/upload-artifact@v4
         with:
           name: network-readiness-bundle
           path: dist/
+
+      - name: Upload EF handoff package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ef-handoff-package
+          path: |
+            dist/ef-handoff/
+            dist/ef-handoff-package.tar.gz

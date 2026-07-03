@@ -102,6 +102,26 @@ The verifier script enforces:
 - signing-state consistency (enabled vs unavailable/failed),
 - required bundle artifact presence before handoff.
 
+## EF Handoff Package
+
+Build a client-consumable handoff package:
+
+```bash
+python scripts/build_ef_handoff.py
+```
+
+Outputs:
+
+- `dist/ef-handoff/`
+- `dist/ef-handoff-package.tar.gz`
+
+Package includes:
+
+- machine-readable `EF_HANDOFF_MANIFEST.json`,
+- readiness and release policy files,
+- release bundle artifacts and signing status,
+- `EF_CLIENT_QUICKSTART.md` with reproducibility and promotion steps.
+
 ## What EF/Client Teams Can Do Next
 
 1. Consume release bundle and vectors.
