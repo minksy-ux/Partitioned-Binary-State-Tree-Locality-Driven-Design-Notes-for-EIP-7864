@@ -98,14 +98,30 @@ jobs:
           echo "pr=$PR" >> "$GITHUB_OUTPUT"
           echo "Resolved PR from artifact: $PR"
 
+      - name: Check review bot config exists
+        id: check-config
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f config/eip-editors.yml ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Missing required config file: config/eip-editors.yml"
+          fi
+
       - name: Auto Review Bot
-        if: ${{ steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '' }}
+        if: ${{ (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists == 'true' }}
         id: auto-review-bot
         uses: ethereum/eip-review-bot@bbc63d4bd02da30703f166f15283ae2eed05916b
         with:
           token: ${{ secrets.TOKEN || github.token }}
           config: config/eip-editors.yml
           pr_number: ${{ steps.resolve-pr.outputs.pr || steps.read-pr-artifact.outputs.pr }}
+
+      - name: Review bot config missing, skip gracefully
+        if: ${{ (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists != 'true' }}
+        run: echo "PR number resolved but config/eip-editors.yml is missing; skipping review bot without failure."
 
       - name: No PR context, skip gracefully
         if: ${{ steps.resolve-pr.outputs.pr == '' && steps.read-pr-artifact.outputs.pr == '' }}
