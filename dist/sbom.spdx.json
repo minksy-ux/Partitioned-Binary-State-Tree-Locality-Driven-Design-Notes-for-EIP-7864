@@ -3,31 +3,16 @@
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "pbt-eip7864",
   "creationInfo": {
-    "created": "2026-07-04T11:00:12.342153Z",
+    "created": "2026-07-04T23:48:02.549952Z",
     "creators": [
       "Tool: scripts/generate_supply_chain_artifacts.py"
     ]
   },
   "packages": [
     {
-      "SPDXID": "SPDXRef-Package-anyio",
-      "name": "anyio",
-      "versionInfo": "4.12.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-argon2-cffi",
-      "name": "argon2-cffi",
-      "versionInfo": "25.1.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-argon2-cffi-bindings",
-      "name": "argon2-cffi-bindings",
-      "versionInfo": "25.1.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-arrow",
-      "name": "arrow",
-      "versionInfo": "1.4.0"
+      "SPDXID": "SPDXRef-Package-argcomplete",
+      "name": "argcomplete",
+      "versionInfo": "3.6.3"
     },
     {
       "SPDXID": "SPDXRef-Package-ast_serialize",
@@ -35,29 +20,29 @@
       "versionInfo": "0.6.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-asttokens",
-      "name": "asttokens",
-      "versionInfo": "3.0.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-async-lru",
-      "name": "async-lru",
-      "versionInfo": "2.2.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-attrs",
       "name": "attrs",
-      "versionInfo": "25.4.0"
+      "versionInfo": "23.2.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-babel",
-      "name": "babel",
-      "versionInfo": "2.18.0"
+      "SPDXID": "SPDXRef-Package-Automat",
+      "name": "Automat",
+      "versionInfo": "22.10.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-beautifulsoup4",
-      "name": "beautifulsoup4",
-      "versionInfo": "4.14.3"
+      "SPDXID": "SPDXRef-Package-Babel",
+      "name": "Babel",
+      "versionInfo": "2.10.3"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-bcc",
+      "name": "bcc",
+      "versionInfo": "0.29.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-bcrypt",
+      "name": "bcrypt",
+      "versionInfo": "3.2.2"
     },
     {
       "SPDXID": "SPDXRef-Package-blake3",
@@ -65,24 +50,39 @@
       "versionInfo": "1.0.9"
     },
     {
-      "SPDXID": "SPDXRef-Package-bleach",
-      "name": "bleach",
-      "versionInfo": "6.3.0"
+      "SPDXID": "SPDXRef-Package-blinker",
+      "name": "blinker",
+      "versionInfo": "1.7.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-boto3",
+      "name": "boto3",
+      "versionInfo": "1.34.46"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-botocore",
+      "name": "botocore",
+      "versionInfo": "1.34.46"
     },
     {
       "SPDXID": "SPDXRef-Package-certifi",
       "name": "certifi",
-      "versionInfo": "2026.2.25"
+      "versionInfo": "2023.11.17"
     },
     {
-      "SPDXID": "SPDXRef-Package-cffi",
-      "name": "cffi",
-      "versionInfo": "2.0.0"
+      "SPDXID": "SPDXRef-Package-chardet",
+      "name": "chardet",
+      "versionInfo": "5.2.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-charset-normalizer",
-      "name": "charset-normalizer",
-      "versionInfo": "3.4.5"
+      "SPDXID": "SPDXRef-Package-click",
+      "name": "click",
+      "versionInfo": "8.1.6"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-cloud-init",
+      "name": "cloud-init",
+      "versionInfo": "26.1"
     },
     {
       "SPDXID": "SPDXRef-Package-colorama",
@@ -90,74 +90,64 @@
       "versionInfo": "0.4.6"
     },
     {
-      "SPDXID": "SPDXRef-Package-comm",
-      "name": "comm",
-      "versionInfo": "0.2.3"
+      "SPDXID": "SPDXRef-Package-command-not-found",
+      "name": "command-not-found",
+      "versionInfo": "0.3"
     },
     {
-      "SPDXID": "SPDXRef-Package-debugpy",
-      "name": "debugpy",
-      "versionInfo": "1.8.20"
+      "SPDXID": "SPDXRef-Package-configobj",
+      "name": "configobj",
+      "versionInfo": "5.0.8"
     },
     {
-      "SPDXID": "SPDXRef-Package-decorator",
-      "name": "decorator",
-      "versionInfo": "5.2.1"
+      "SPDXID": "SPDXRef-Package-constantly",
+      "name": "constantly",
+      "versionInfo": "23.10.4"
     },
     {
-      "SPDXID": "SPDXRef-Package-defusedxml",
-      "name": "defusedxml",
-      "versionInfo": "0.7.1"
+      "SPDXID": "SPDXRef-Package-cryptography",
+      "name": "cryptography",
+      "versionInfo": "41.0.7"
     },
     {
-      "SPDXID": "SPDXRef-Package-executing",
-      "name": "executing",
-      "versionInfo": "2.2.1"
+      "SPDXID": "SPDXRef-Package-dbus-python",
+      "name": "dbus-python",
+      "versionInfo": "1.3.2"
     },
     {
-      "SPDXID": "SPDXRef-Package-fastjsonschema",
-      "name": "fastjsonschema",
-      "versionInfo": "2.21.2"
+      "SPDXID": "SPDXRef-Package-distro",
+      "name": "distro",
+      "versionInfo": "1.9.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-fqdn",
-      "name": "fqdn",
-      "versionInfo": "1.5.1"
+      "SPDXID": "SPDXRef-Package-distro-info",
+      "name": "distro-info",
+      "versionInfo": "1.7+build1"
     },
     {
-      "SPDXID": "SPDXRef-Package-gitdb",
-      "name": "gitdb",
-      "versionInfo": "4.0.12"
+      "SPDXID": "SPDXRef-Package-httplib2",
+      "name": "httplib2",
+      "versionInfo": "0.20.4"
     },
     {
-      "SPDXID": "SPDXRef-Package-GitPython",
-      "name": "GitPython",
-      "versionInfo": "3.1.46"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-h11",
-      "name": "h11",
-      "versionInfo": "0.16.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-httpcore",
-      "name": "httpcore",
-      "versionInfo": "1.0.9"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-httpx",
-      "name": "httpx",
-      "versionInfo": "0.28.1"
+      "SPDXID": "SPDXRef-Package-hyperlink",
+      "name": "hyperlink",
+      "versionInfo": "21.0.0"
     },
     {
       "SPDXID": "SPDXRef-Package-hypothesis",
       "name": "hypothesis",
-      "versionInfo": "6.155.7"
+      "versionInfo": "6.156.1"
     },
     {
       "SPDXID": "SPDXRef-Package-idna",
       "name": "idna",
-      "versionInfo": "3.11"
+      "versionInfo": "3.6"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-incremental",
+      "name": "incremental",
+      "versionInfo": "22.10.0"
     },
     {
       "SPDXID": "SPDXRef-Package-iniconfig",
@@ -165,109 +155,44 @@
       "versionInfo": "2.3.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-ipykernel",
-      "name": "ipykernel",
-      "versionInfo": "7.2.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-ipython",
-      "name": "ipython",
-      "versionInfo": "9.11.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-ipython_pygments_lexers",
-      "name": "ipython_pygments_lexers",
-      "versionInfo": "1.1.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-isoduration",
-      "name": "isoduration",
-      "versionInfo": "20.11.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-jedi",
-      "name": "jedi",
-      "versionInfo": "0.19.2"
-    },
-    {
       "SPDXID": "SPDXRef-Package-Jinja2",
       "name": "Jinja2",
-      "versionInfo": "3.1.6"
+      "versionInfo": "3.1.2"
     },
     {
-      "SPDXID": "SPDXRef-Package-json5",
-      "name": "json5",
-      "versionInfo": "0.13.0"
+      "SPDXID": "SPDXRef-Package-jmespath",
+      "name": "jmespath",
+      "versionInfo": "1.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-jsonpatch",
+      "name": "jsonpatch",
+      "versionInfo": "1.32"
     },
     {
       "SPDXID": "SPDXRef-Package-jsonpointer",
       "name": "jsonpointer",
-      "versionInfo": "3.0.0"
+      "versionInfo": "2.0"
     },
     {
       "SPDXID": "SPDXRef-Package-jsonschema",
       "name": "jsonschema",
-      "versionInfo": "4.26.0"
+      "versionInfo": "4.10.3"
     },
     {
-      "SPDXID": "SPDXRef-Package-jsonschema-specifications",
-      "name": "jsonschema-specifications",
-      "versionInfo": "2025.9.1"
+      "SPDXID": "SPDXRef-Package-launchpadlib",
+      "name": "launchpadlib",
+      "versionInfo": "1.11.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-jupyter-events",
-      "name": "jupyter-events",
-      "versionInfo": "0.12.0"
+      "SPDXID": "SPDXRef-Package-lazr.restfulclient",
+      "name": "lazr.restfulclient",
+      "versionInfo": "0.14.6"
     },
     {
-      "SPDXID": "SPDXRef-Package-jupyter-lsp",
-      "name": "jupyter-lsp",
-      "versionInfo": "2.3.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-jupyter_client",
-      "name": "jupyter_client",
-      "versionInfo": "8.8.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-jupyter_core",
-      "name": "jupyter_core",
-      "versionInfo": "5.9.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-jupyter_server",
-      "name": "jupyter_server",
-      "versionInfo": "2.17.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-jupyter_server_terminals",
-      "name": "jupyter_server_terminals",
-      "versionInfo": "0.5.4"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-jupyterlab",
-      "name": "jupyterlab",
-      "versionInfo": "4.5.5"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-jupyterlab_git",
-      "name": "jupyterlab_git",
-      "versionInfo": "0.52.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-jupyterlab_pygments",
-      "name": "jupyterlab_pygments",
-      "versionInfo": "0.3.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-jupyterlab_server",
-      "name": "jupyterlab_server",
-      "versionInfo": "2.28.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-lark",
-      "name": "lark",
-      "versionInfo": "1.3.1"
+      "SPDXID": "SPDXRef-Package-lazr.uri",
+      "name": "lazr.uri",
+      "versionInfo": "1.0.6"
     },
     {
       "SPDXID": "SPDXRef-Package-librt",
@@ -275,19 +200,24 @@
       "versionInfo": "0.12.0"
     },
     {
+      "SPDXID": "SPDXRef-Package-markdown-it-py",
+      "name": "markdown-it-py",
+      "versionInfo": "3.0.0"
+    },
+    {
       "SPDXID": "SPDXRef-Package-MarkupSafe",
       "name": "MarkupSafe",
-      "versionInfo": "3.0.3"
+      "versionInfo": "2.1.5"
     },
     {
-      "SPDXID": "SPDXRef-Package-matplotlib-inline",
-      "name": "matplotlib-inline",
-      "versionInfo": "0.2.1"
+      "SPDXID": "SPDXRef-Package-mdurl",
+      "name": "mdurl",
+      "versionInfo": "0.1.2"
     },
     {
-      "SPDXID": "SPDXRef-Package-mistune",
-      "name": "mistune",
-      "versionInfo": "3.2.0"
+      "SPDXID": "SPDXRef-Package-mercurial",
+      "name": "mercurial",
+      "versionInfo": "6.7.2"
     },
     {
       "SPDXID": "SPDXRef-Package-mypy",
@@ -300,49 +230,29 @@
       "versionInfo": "1.1.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-nbclient",
-      "name": "nbclient",
-      "versionInfo": "0.10.4"
+      "SPDXID": "SPDXRef-Package-netaddr",
+      "name": "netaddr",
+      "versionInfo": "0.8.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-nbconvert",
-      "name": "nbconvert",
-      "versionInfo": "7.17.0"
+      "SPDXID": "SPDXRef-Package-netifaces",
+      "name": "netifaces",
+      "versionInfo": "0.11.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-nbdime",
-      "name": "nbdime",
-      "versionInfo": "4.0.4"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-nbformat",
-      "name": "nbformat",
-      "versionInfo": "5.10.4"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-nest-asyncio",
-      "name": "nest-asyncio",
-      "versionInfo": "1.6.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-notebook_shim",
-      "name": "notebook_shim",
-      "versionInfo": "0.2.4"
+      "SPDXID": "SPDXRef-Package-oauthlib",
+      "name": "oauthlib",
+      "versionInfo": "3.2.2"
     },
     {
       "SPDXID": "SPDXRef-Package-packaging",
       "name": "packaging",
-      "versionInfo": "26.0"
+      "versionInfo": "24.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-pandocfilters",
-      "name": "pandocfilters",
-      "versionInfo": "1.5.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-parso",
-      "name": "parso",
-      "versionInfo": "0.8.6"
+      "SPDXID": "SPDXRef-Package-passlib",
+      "name": "passlib",
+      "versionInfo": "1.7.4"
     },
     {
       "SPDXID": "SPDXRef-Package-pathspec",
@@ -357,12 +267,17 @@
     {
       "SPDXID": "SPDXRef-Package-pip",
       "name": "pip",
-      "versionInfo": "26.0.1"
+      "versionInfo": "24.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-pipx",
+      "name": "pipx",
+      "versionInfo": "1.14.1"
     },
     {
       "SPDXID": "SPDXRef-Package-platformdirs",
       "name": "platformdirs",
-      "versionInfo": "4.9.4"
+      "versionInfo": "4.10.0"
     },
     {
       "SPDXID": "SPDXRef-Package-pluggy",
@@ -370,39 +285,64 @@
       "versionInfo": "1.6.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-prometheus_client",
-      "name": "prometheus_client",
-      "versionInfo": "0.24.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-prompt_toolkit",
-      "name": "prompt_toolkit",
-      "versionInfo": "3.0.52"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-psutil",
-      "name": "psutil",
-      "versionInfo": "7.2.2"
-    },
-    {
       "SPDXID": "SPDXRef-Package-ptyprocess",
       "name": "ptyprocess",
       "versionInfo": "0.7.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-pure_eval",
-      "name": "pure_eval",
-      "versionInfo": "0.2.3"
+      "SPDXID": "SPDXRef-Package-pyasn1",
+      "name": "pyasn1",
+      "versionInfo": "0.4.8"
     },
     {
-      "SPDXID": "SPDXRef-Package-pycparser",
-      "name": "pycparser",
-      "versionInfo": "3.0"
+      "SPDXID": "SPDXRef-Package-pyasn1-modules",
+      "name": "pyasn1-modules",
+      "versionInfo": "0.2.8"
     },
     {
       "SPDXID": "SPDXRef-Package-Pygments",
       "name": "Pygments",
-      "versionInfo": "2.19.2"
+      "versionInfo": "2.17.2"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-PyGObject",
+      "name": "PyGObject",
+      "versionInfo": "3.48.2"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-PyHamcrest",
+      "name": "PyHamcrest",
+      "versionInfo": "2.1.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-PyJWT",
+      "name": "PyJWT",
+      "versionInfo": "2.7.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-pyOpenSSL",
+      "name": "pyOpenSSL",
+      "versionInfo": "23.2.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-pyparsing",
+      "name": "pyparsing",
+      "versionInfo": "3.1.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-pyparted",
+      "name": "pyparted",
+      "versionInfo": "3.12.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-pyrsistent",
+      "name": "pyrsistent",
+      "versionInfo": "0.20.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-pyserial",
+      "name": "pyserial",
+      "versionInfo": "3.5"
     },
     {
       "SPDXID": "SPDXRef-Package-pytest",
@@ -410,54 +350,44 @@
       "versionInfo": "9.1.1"
     },
     {
-      "SPDXID": "SPDXRef-Package-python-dateutil",
-      "name": "python-dateutil",
-      "versionInfo": "2.9.0.post0"
+      "SPDXID": "SPDXRef-Package-python-apt",
+      "name": "python-apt",
+      "versionInfo": "2.7.7+ubuntu5.2"
     },
     {
-      "SPDXID": "SPDXRef-Package-python-json-logger",
-      "name": "python-json-logger",
-      "versionInfo": "4.0.0"
+      "SPDXID": "SPDXRef-Package-python-dateutil",
+      "name": "python-dateutil",
+      "versionInfo": "2.8.2"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-python-debian",
+      "name": "python-debian",
+      "versionInfo": "0.1.49+ubuntu2"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-python-magic",
+      "name": "python-magic",
+      "versionInfo": "0.4.27"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-pytz",
+      "name": "pytz",
+      "versionInfo": "2024.1"
     },
     {
       "SPDXID": "SPDXRef-Package-PyYAML",
       "name": "PyYAML",
-      "versionInfo": "6.0.3"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-pyzmq",
-      "name": "pyzmq",
-      "versionInfo": "27.1.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-referencing",
-      "name": "referencing",
-      "versionInfo": "0.37.0"
+      "versionInfo": "6.0.1"
     },
     {
       "SPDXID": "SPDXRef-Package-requests",
       "name": "requests",
-      "versionInfo": "2.32.5"
+      "versionInfo": "2.31.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-rfc3339-validator",
-      "name": "rfc3339-validator",
-      "versionInfo": "0.1.4"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-rfc3986-validator",
-      "name": "rfc3986-validator",
-      "versionInfo": "0.1.1"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-rfc3987-syntax",
-      "name": "rfc3987-syntax",
-      "versionInfo": "1.1.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-rpds-py",
-      "name": "rpds-py",
-      "versionInfo": "0.30.0"
+      "SPDXID": "SPDXRef-Package-rich",
+      "name": "rich",
+      "versionInfo": "13.7.1"
     },
     {
       "SPDXID": "SPDXRef-Package-ruff",
@@ -465,24 +395,24 @@
       "versionInfo": "0.15.20"
     },
     {
-      "SPDXID": "SPDXRef-Package-Send2Trash",
-      "name": "Send2Trash",
-      "versionInfo": "2.1.0"
+      "SPDXID": "SPDXRef-Package-s3transfer",
+      "name": "s3transfer",
+      "versionInfo": "0.10.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-service-identity",
+      "name": "service-identity",
+      "versionInfo": "24.1.0"
     },
     {
       "SPDXID": "SPDXRef-Package-setuptools",
       "name": "setuptools",
-      "versionInfo": "82.0.1"
+      "versionInfo": "68.1.2"
     },
     {
       "SPDXID": "SPDXRef-Package-six",
       "name": "six",
-      "versionInfo": "1.17.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-smmap",
-      "name": "smmap",
-      "versionInfo": "5.0.3"
+      "versionInfo": "1.16.0"
     },
     {
       "SPDXID": "SPDXRef-Package-sortedcontainers",
@@ -490,74 +420,74 @@
       "versionInfo": "2.4.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-soupsieve",
-      "name": "soupsieve",
-      "versionInfo": "2.8.3"
+      "SPDXID": "SPDXRef-Package-sos",
+      "name": "sos",
+      "versionInfo": "4.10.2"
     },
     {
-      "SPDXID": "SPDXRef-Package-stack-data",
-      "name": "stack-data",
-      "versionInfo": "0.6.3"
+      "SPDXID": "SPDXRef-Package-ssh-import-id",
+      "name": "ssh-import-id",
+      "versionInfo": "5.11"
     },
     {
-      "SPDXID": "SPDXRef-Package-terminado",
-      "name": "terminado",
-      "versionInfo": "0.18.1"
+      "SPDXID": "SPDXRef-Package-systemd-python",
+      "name": "systemd-python",
+      "versionInfo": "235"
     },
     {
-      "SPDXID": "SPDXRef-Package-tinycss2",
-      "name": "tinycss2",
-      "versionInfo": "1.4.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-tornado",
-      "name": "tornado",
-      "versionInfo": "6.5.5"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-traitlets",
-      "name": "traitlets",
-      "versionInfo": "5.14.3"
+      "SPDXID": "SPDXRef-Package-Twisted",
+      "name": "Twisted",
+      "versionInfo": "24.3.0"
     },
     {
       "SPDXID": "SPDXRef-Package-typing_extensions",
       "name": "typing_extensions",
-      "versionInfo": "4.15.0"
+      "versionInfo": "4.10.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-tzdata",
-      "name": "tzdata",
-      "versionInfo": "2025.3"
+      "SPDXID": "SPDXRef-Package-ubuntu-pro-client",
+      "name": "ubuntu-pro-client",
+      "versionInfo": "8001"
     },
     {
-      "SPDXID": "SPDXRef-Package-uri-template",
-      "name": "uri-template",
-      "versionInfo": "1.3.0"
+      "SPDXID": "SPDXRef-Package-ufw",
+      "name": "ufw",
+      "versionInfo": "0.36.2"
     },
     {
       "SPDXID": "SPDXRef-Package-urllib3",
       "name": "urllib3",
-      "versionInfo": "2.6.3"
+      "versionInfo": "2.0.7"
     },
     {
-      "SPDXID": "SPDXRef-Package-wcwidth",
-      "name": "wcwidth",
-      "versionInfo": "0.6.0"
+      "SPDXID": "SPDXRef-Package-userpath",
+      "name": "userpath",
+      "versionInfo": "1.9.2"
     },
     {
-      "SPDXID": "SPDXRef-Package-webcolors",
-      "name": "webcolors",
-      "versionInfo": "25.10.0"
+      "SPDXID": "SPDXRef-Package-wadllib",
+      "name": "wadllib",
+      "versionInfo": "1.3.6"
     },
     {
-      "SPDXID": "SPDXRef-Package-webencodings",
-      "name": "webencodings",
-      "versionInfo": "0.5.1"
+      "SPDXID": "SPDXRef-Package-WALinuxAgent",
+      "name": "WALinuxAgent",
+      "versionInfo": "2.15.0.1"
     },
     {
-      "SPDXID": "SPDXRef-Package-websocket-client",
-      "name": "websocket-client",
-      "versionInfo": "1.9.0"
+      "SPDXID": "SPDXRef-Package-wheel",
+      "name": "wheel",
+      "versionInfo": "0.42.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-zope.interface",
+      "name": "zope.interface",
+      "versionInfo": "6.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-zstandard",
+      "name": "zstandard",
+      "versionInfo": "0.22.0"
     }
   ]
 }
