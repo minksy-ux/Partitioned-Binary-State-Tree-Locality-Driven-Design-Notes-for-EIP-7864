@@ -101,3 +101,26 @@ def test_validate_supply_chain_allows_unsigned_release_without_waiver(
 
     assert proc.returncode == 0
     assert "supply-chain: PASS" in proc.stdout
+
+
+def test_validate_supply_chain_ci_release_env_without_signing_vars(
+    tmp_path: Path,
+) -> None:
+    _write_required_artifacts(tmp_path)
+
+    # Mirror the reported CI failure environment where only release mode is set.
+    env = {
+        "PBT_RELEASE_MODE": "1",
+    }
+
+    proc = subprocess.run(
+        [sys.executable, str(_script_path())],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 0
+    assert "supply-chain: PASS" in proc.stdout
