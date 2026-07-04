@@ -1,0 +1,114 @@
+name: Auto Review Bot
+
+'on':
+  workflow_run:
+    workflows:
+      - Auto Review Bot Trigger
+    types:
+      - completed
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: auto-review-bot-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  auto-review-bot:
+    name: Run
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trace upstream workflow run
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
+          echo "Upstream workflow: ${{ github.event.workflow_run.name }}"
+          echo "Upstream conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Upstream run id: ${{ github.event.workflow_run.id }}"
+          echo "Upstream run url: $RUN_URL"
+          {
+            echo "### Auto Review Bot Trace"
+            echo "- Upstream workflow: ${{ github.event.workflow_run.name }}"
+            echo "- Upstream conclusion: ${{ github.event.workflow_run.conclusion }}"
+            echo "- Upstream run ID: ${{ github.event.workflow_run.id }}"
+            echo "- Upstream run URL: $RUN_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve PR Number from workflow_run payload
+        id: resolve-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload?.workflow_run?.pull_requests?.[0]?.number;
+            if (pr) {
+              core.setOutput('pr', String(pr));
+              core.info(`Resolved PR from workflow_run payload: ${pr}`);
+            } else {
+              core.info('workflow_run payload has no linked PR; will try artifact fallback.');
+            }
+
+      - name: Fetch PR Number artifact fallback
+        if: ${{ steps.resolve-pr.outputs.pr == '' }}
+        uses: dawidd6/action-download-artifact@246dbf436b23d7c49e21a7ab8204ca9ecd1fe615
+        with:
+          name: pr-number
+          workflow: auto-review-trigger.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          workflow_conclusion: success
+          if_no_artifact_found: ignore
+
+      - name: Read PR Number from artifact
+        if: ${{ steps.resolve-pr.outputs.pr == '' }}
+        id: read-pr-artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=""
+          if [ -f pr-number.txt ]; then
+            FILE="pr-number.txt"
+          elif [ -f pr-number/pr-number.txt ]; then
+            FILE="pr-number/pr-number.txt"
+          else
+            CANDIDATE=$(find . -maxdepth 3 -type f -name 'pr-number.txt' | head -n 1 || true)
+            if [ -n "$CANDIDATE" ]; then
+              FILE="$CANDIDATE"
+            fi
+          fi
+
+          if [ -z "$FILE" ]; then
+            echo "No PR artifact found."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR=$(tr -d '[:space:]' < "$FILE")
+          if [ -z "$PR" ]; then
+            echo "Artifact file is empty."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          echo "Resolved PR from artifact: $PR"
+
+      - name: Auto Review Bot
+        if: ${{ steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '' }}
+        id: auto-review-bot
+        uses: ethereum/eip-review-bot@dist
+        with:
+          token: ${{ secrets.TOKEN || github.token }}
+          config: config/eip-editors.yml
+          pr_number: ${{ steps.resolve-pr.outputs.pr || steps.read-pr-artifact.outputs.pr }}
+
+      - name: No PR context, skip gracefully
+        if: ${{ steps.resolve-pr.outputs.pr == '' && steps.read-pr-artifact.outputs.pr == '' }}
+        run: echo "No PR number could be resolved; skipping without failure."

@@ -1,0 +1,60 @@
+name: Auto Review Bot Trigger
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to publish as artifact
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-review-trigger-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  publish-pr-number:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve PR number
+        id: resolve-pr
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          else
+            PR_NUMBER="${{ inputs.pr_number }}"
+          fi
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "PR number is missing."
+            exit 1
+          fi
+
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "PR number must be numeric, got: $PR_NUMBER"
+            exit 1
+          fi
+
+          printf '%s\n' "$PR_NUMBER" > pr-number.txt
+          echo "pr=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Upload PR number artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: pr-number
+          path: pr-number.txt
+          if-no-files-found: error
+          retention-days: 7
