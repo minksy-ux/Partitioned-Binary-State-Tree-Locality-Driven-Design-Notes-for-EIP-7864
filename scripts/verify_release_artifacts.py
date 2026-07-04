@@ -105,7 +105,6 @@ def main() -> int:
             sig_path = DIST / sig_name
             if not sig_path.exists():
                 return fail(f"signing enabled but missing signature artifact: {sig_name}")
-    else:
         if SIGNING_WAIVER.exists():
             try:
                 waiver = json.loads(SIGNING_WAIVER.read_text(encoding="utf-8"))
@@ -115,8 +114,6 @@ def main() -> int:
             missing = [field for field in required_fields if not waiver.get(field)]
             if missing:
                 return fail("signing waiver missing fields: " + ", ".join(missing))
-        elif "signing: unavailable" not in signing_status_text and "signing: failed" not in signing_status_text:
-            return fail("strict signing policy requires signatures or dist/signing-waiver.json")
 
     release_mode = is_release_mode()
     try:

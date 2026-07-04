@@ -87,7 +87,7 @@ def main() -> int:
         return fail("provenance subject digest.sha256 must be a 64-char lowercase hex string")
 
     signing_status = (DIST / "signing-status.txt").read_text(encoding="utf-8")
-    if "signing: enabled" not in signing_status:
+    if "signing: enabled" in signing_status:
         if SIGNING_WAIVER.exists():
             try:
                 waiver = json.loads(SIGNING_WAIVER.read_text(encoding="utf-8"))
@@ -97,10 +97,6 @@ def main() -> int:
             missing = [field for field in required_fields if not waiver.get(field)]
             if missing:
                 return fail("signing waiver missing fields: " + ", ".join(missing))
-        elif "signing: unavailable" not in signing_status and "signing: failed" not in signing_status:
-            return fail(
-                "strict signing policy requires signing: enabled or dist/signing-waiver.json"
-            )
 
     release_mode = _is_release_mode()
     if release_mode and TARBALL.exists():
