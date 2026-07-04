@@ -30,20 +30,6 @@ def _is_release_mode() -> bool:
     return False
 
 
-def _is_signing_explicitly_disabled() -> bool:
-    env = os.environ.get("SUPPLY_CHAIN_SIGNING", "").strip().lower()
-    return env in {"0", "false", "no", "off", "disabled"}
-
-
-def _is_signing_enabled_requested() -> bool:
-    env = os.environ.get("PBT_SIGNING_ENABLED", "").strip().lower()
-    if env in {"1", "true", "yes", "on"}:
-        return True
-    if env in {"0", "false", "no", "off"}:
-        return False
-    return not _is_signing_explicitly_disabled()
-
-
 def fail(message: str) -> int:
     print(f"supply-chain: FAIL: {message}")
     return 1
