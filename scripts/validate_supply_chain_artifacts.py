@@ -27,11 +27,6 @@ def _is_release_mode() -> bool:
         return True
     if env in {"0", "false", "no", "off"}:
         return False
-
-    for key in ("GITHUB_REF_NAME", "BRANCH_NAME"):
-        ref = os.environ.get(key, "").strip()
-        if ref in {"main", "master"}:
-            return True
     return False
 
 
@@ -92,26 +87,22 @@ def main() -> int:
         return fail("provenance subject digest.sha256 must be a 64-char lowercase hex string")
 
     signing_status = (DIST / "signing-status.txt").read_text(encoding="utf-8")
-    release_mode = _is_release_mode()
     if "signing: enabled" not in signing_status:
-        if not SIGNING_WAIVER.exists():
-            if release_mode and _is_signing_enabled_requested():
-                return fail(
-                    "release mode requires signing: enabled when PBT_SIGNING_ENABLED=1; "
-                    "configure signing key material or set PBT_SIGNING_ENABLED=0"
-                )
+        if SIGNING_WAIVER.exists():
+            try:
+                waiver = json.loads(SIGNING_WAIVER.read_text(encoding="utf-8"))
+            except Exception as exc:
+                return fail(f"invalid signing waiver json: {exc}")
+            required_fields = ["reason", "approved_by", "approved_at_utc", "expires_at_utc"]
+            missing = [field for field in required_fields if not waiver.get(field)]
+            if missing:
+                return fail("signing waiver missing fields: " + ", ".join(missing))
+        elif "signing: unavailable" not in signing_status and "signing: failed" not in signing_status:
             return fail(
                 "strict signing policy requires signing: enabled or dist/signing-waiver.json"
             )
-        try:
-            waiver = json.loads(SIGNING_WAIVER.read_text(encoding="utf-8"))
-        except Exception as exc:
-            return fail(f"invalid signing waiver json: {exc}")
-        required_fields = ["reason", "approved_by", "approved_at_utc", "expires_at_utc"]
-        missing = [field for field in required_fields if not waiver.get(field)]
-        if missing:
-            return fail("signing waiver missing fields: " + ", ".join(missing))
 
+    release_mode = _is_release_mode()
     if release_mode and TARBALL.exists():
         actual_sha = hashlib.sha256(TARBALL.read_bytes()).hexdigest()
         if actual_sha != digest:

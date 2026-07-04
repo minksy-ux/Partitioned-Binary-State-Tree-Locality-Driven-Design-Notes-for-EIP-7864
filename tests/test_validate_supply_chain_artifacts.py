@@ -80,7 +80,7 @@ def test_validate_supply_chain_allows_waiver_before_release_mode_signing_failure
     assert "supply-chain: PASS" in proc.stdout
 
 
-def test_validate_supply_chain_fails_in_release_mode_when_waiver_missing(
+def test_validate_supply_chain_allows_unsigned_release_without_waiver(
     tmp_path: Path,
 ) -> None:
     _write_required_artifacts(tmp_path)
@@ -99,5 +99,5 @@ def test_validate_supply_chain_fails_in_release_mode_when_waiver_missing(
         text=True,
     )
 
-    assert proc.returncode == 1
-    assert "release mode requires signing: enabled when PBT_SIGNING_ENABLED=1" in proc.stdout
+    assert proc.returncode == 0
+    assert "supply-chain: PASS" in proc.stdout

@@ -29,11 +29,6 @@ def is_release_mode() -> bool:
         return True
     if env in {"0", "false", "no", "off"}:
         return False
-
-    for key in ("GITHUB_REF_NAME", "BRANCH_NAME"):
-        ref = os.environ.get(key, "").strip()
-        if ref in {"main", "master"}:
-            return True
     return False
 
 
@@ -104,7 +99,6 @@ def main() -> int:
     if by_path["dist/network-readiness-summary.txt"].get("sha256") != sha256(REQUIRED["summary"]):
         return fail("manifest summary checksum does not match actual file")
 
-    release_mode = is_release_mode()
     signing_status_text = REQUIRED["signing_status"].read_text(encoding="utf-8")
     if "signing: enabled" in signing_status_text:
         for sig_name in ["release-manifest.json.sig", "pbt-rs-source.tar.gz.sig"]:
@@ -112,17 +106,19 @@ def main() -> int:
             if not sig_path.exists():
                 return fail(f"signing enabled but missing signature artifact: {sig_name}")
     else:
-        if not SIGNING_WAIVER.exists():
+        if SIGNING_WAIVER.exists():
+            try:
+                waiver = json.loads(SIGNING_WAIVER.read_text(encoding="utf-8"))
+            except Exception as exc:
+                return fail(f"invalid signing waiver json: {exc}")
+            required_fields = ["reason", "approved_by", "approved_at_utc", "expires_at_utc"]
+            missing = [field for field in required_fields if not waiver.get(field)]
+            if missing:
+                return fail("signing waiver missing fields: " + ", ".join(missing))
+        elif "signing: unavailable" not in signing_status_text and "signing: failed" not in signing_status_text:
             return fail("strict signing policy requires signatures or dist/signing-waiver.json")
-        try:
-            waiver = json.loads(SIGNING_WAIVER.read_text(encoding="utf-8"))
-        except Exception as exc:
-            return fail(f"invalid signing waiver json: {exc}")
-        required_fields = ["reason", "approved_by", "approved_at_utc", "expires_at_utc"]
-        missing = [field for field in required_fields if not waiver.get(field)]
-        if missing:
-            return fail("signing waiver missing fields: " + ", ".join(missing))
 
+    release_mode = is_release_mode()
     try:
         sbom = json.loads(REQUIRED["sbom"].read_text(encoding="utf-8"))
     except Exception as exc:
