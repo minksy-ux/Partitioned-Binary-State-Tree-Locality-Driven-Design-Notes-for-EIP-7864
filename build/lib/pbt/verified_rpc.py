@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from .constants import STEM_SUBTREE_WIDTH
 from .stem_subscription import (
     LocalVerificationResult,
     StemWitnessPacket,
@@ -19,6 +18,8 @@ from .stem_subscription import (
     verify_witness_packet,
 )
 from .tree import MerkleProof, verify_proof
+from .constants import STEM_SUBTREE_WIDTH
+
 
 METHOD_GET_VERIFIED_PROOF = "eth_getVerifiedProof"
 METHOD_GET_STEM_WITNESS = "eth_getStemWitness"

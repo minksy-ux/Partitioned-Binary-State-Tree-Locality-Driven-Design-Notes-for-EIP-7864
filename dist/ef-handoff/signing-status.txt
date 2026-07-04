@@ -1,0 +1,3 @@
+signing: unavailable
+reason: gpg not installed or no secret key configured
+action: configure gpg key, then rerun release_bundle.sh

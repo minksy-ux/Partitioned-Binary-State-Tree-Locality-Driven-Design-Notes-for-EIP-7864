@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at_utc": "2026-07-03T15:05:52.566734Z",
+  "overall_ok": true,
+  "checks": {
+    "python_tests": {
+      "ok": true,
+      "command": [
+        "/usr/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_minimal_verifier.py"
+      ],
+      "output_excerpt": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864\nconfigfile: pyproject.toml\nplugins: hypothesis-6.156.1\ncollected 6 items\n\ntests/test_minimal_verifier.py ......                                    [100%]\n\n============================== 6 passed in 0.05s ==============================="
+    },
+    "rust_tests": {
+      "ok": true,
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "pbt-rs/Cargo.toml",
+        "--",
+        "--nocapture"
+      ],
+      "output_excerpt": "\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s\n     Running unittests src/lib.rs (pbt-rs/target/debug/deps/pbt_rs-1dc8503b4ec19e4e)\n     Running unittests src/bin/conformance_case.rs (pbt-rs/target/debug/deps/conformance_case-d33172a33fbf973b)\n     Running tests/core_roundtrip.rs (pbt-rs/target/debug/deps/core_roundtrip-6b47c919a4378434)\n     Running tests/ethereum_keys.rs (pbt-rs/target/debug/deps/ethereum_keys-490234392b5891fe)\n     Running tests/hash_mode.rs (pbt-rs/target/debug/deps/hash_mode-754083f96ae6ccdf)\n     Running tests/locality_vectors.rs (pbt-rs/target/debug/deps/locality_vectors-8d2091ef83ce4ca3)\n     Running tests/migration.rs (pbt-rs/target/debug/deps/migration-10b2ea83aa89562b)\n     Running tests/proof_format.rs (pbt-rs/target/debug/deps/proof_format-10a8922de6b31e33)\n     Running tests/property.rs (pbt-rs/target/debug/deps/property-bda341f5b2e5eaa1)\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\n     Running tests/vector_fold.rs (pbt-rs/target/debug/deps/vector_fold-13d05a46c382716e)\n   Doc-tests pbt_rs"
+    },
+    "cross_client_conformance": {
+      "ok": true,
+      "command": [
+        "/usr/bin/python",
+        "scripts/run_cross_client_conformance.py"
+      ],
+      "output_excerpt": "cross-client-conformance: PASS\ncross-client-conformance: report=dist/cross-client-conformance-report.json"
+    },
+    "rollback_swap_verify": {
+      "ok": true,
+      "command": [
+        "/usr/bin/python",
+        "scripts/verify_release_artifacts.py"
+      ],
+      "output_excerpt": "release-artifacts: PASS"
+    },
+    "restore_verify": {
+      "ok": true,
+      "command": [
+        "/usr/bin/python",
+        "scripts/verify_release_artifacts.py"
+      ],
+      "output_excerpt": "release-artifacts: PASS"
+    },
+    "restored_hashes_match_original": {
+      "ok": true,
+      "expected": {
+        "pbt-rs-source.tar.gz": "576114acdcad1b99f298e3cbd6999880a6401e8736ae098405966aaa62167c7f",
+        "pbt-rs-sha256.txt": "5cd13f402fb59c9aa32e07c8df974a4af64ca242f9c2e1bada6db6a64485201a",
+        "network-readiness-summary.txt": "15763e8304bdc0022253fd9d5e21b68664fe55a3a1f69fe5d895f31b2a8fba0c",
+        "release-manifest.json": "d5709a0a203af58c463758b23e48ca8adb8c10388bddb1ef54c8cb13f09bbb5d",
+        "signing-status.txt": "1b77125b67d37ef5bb359ad786d4094348cd68b3423e889e880ab12bffb0aa83",
+        "sbom.spdx.json": "4c6910ac4fd094b8214db12643dbd6840e83b411f2d6caf8a651ef7d991976b0",
+        "provenance.intoto.jsonl": "a6be8f95597607b914b283a1405e94e3476328ca73f377be1d8340eccbf003ca"
+      },
+      "actual": {
+        "pbt-rs-source.tar.gz": "576114acdcad1b99f298e3cbd6999880a6401e8736ae098405966aaa62167c7f",
+        "pbt-rs-sha256.txt": "5cd13f402fb59c9aa32e07c8df974a4af64ca242f9c2e1bada6db6a64485201a",
+        "network-readiness-summary.txt": "15763e8304bdc0022253fd9d5e21b68664fe55a3a1f69fe5d895f31b2a8fba0c",
+        "release-manifest.json": "d5709a0a203af58c463758b23e48ca8adb8c10388bddb1ef54c8cb13f09bbb5d",
+        "signing-status.txt": "1b77125b67d37ef5bb359ad786d4094348cd68b3423e889e880ab12bffb0aa83",
+        "sbom.spdx.json": "4c6910ac4fd094b8214db12643dbd6840e83b411f2d6caf8a651ef7d991976b0",
+        "provenance.intoto.jsonl": "a6be8f95597607b914b283a1405e94e3476328ca73f377be1d8340eccbf003ca"
+      }
+    }
+  }
+}
