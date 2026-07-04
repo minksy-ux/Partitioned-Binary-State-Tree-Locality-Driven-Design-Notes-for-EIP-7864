@@ -101,3 +101,39 @@ def test_validate_supply_chain_fails_in_release_mode_when_waiver_missing(
 
     assert proc.returncode == 1
     assert "release mode requires signing: enabled when PBT_SIGNING_ENABLED=1" in proc.stdout
+
+
+def test_validate_supply_chain_allows_waiver_in_release_mode_when_signing_not_requested(
+    tmp_path: Path,
+) -> None:
+    _write_required_artifacts(tmp_path)
+    dist = tmp_path / "dist"
+    (dist / "signing-waiver.json").write_text(
+        json.dumps(
+            {
+                "reason": "CI runner has no key material",
+                "approved_by": "release-engineering",
+                "approved_at_utc": "2026-07-04T00:00:00Z",
+                "expires_at_utc": "2026-12-31T00:00:00Z",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    env = {
+        "PBT_RELEASE_MODE": "1",
+        "PBT_SIGNING_ENABLED": "0",
+        "SUPPLY_CHAIN_SIGNING": "disabled",
+    }
+
+    proc = subprocess.run(
+        [sys.executable, str(_script_path())],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 0
+    assert "supply-chain: PASS" in proc.stdout
