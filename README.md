@@ -15,27 +15,29 @@ For Ethereum Foundation and client-team evaluation artifacts, release-bundle ste
 
 ---
 
-## Abstract
+## Overview
 
-This EIP replaces Ethereum's hexary Merkle Patricia Trie (MPT) with a Partitioned Binary Tree (PBT): a strictly binary state tree over prefix-free keys with fixed 32-byte leaf values.
+This repository contains the design notes, reference code, and release-validation artifacts for EIP-7864, which proposes the Partitioned Binary Tree (PBT) as a replacement for Ethereum's hexary Merkle Patricia Trie.
 
-PBT has two core layout primitives:
+PBT is a strictly binary state tree over prefix-free keys with fixed 32-byte leaf values. Its two main layout primitives are one-byte partitioning by `storage_type` and 256-leaf locality groups called stems. The design aims to keep proofs deterministic, reduce verifier complexity, and preserve hash agility across backends such as `blake3`, `keccak256`, and optional `poseidon2`.
 
-- one-byte partitioning by `storage_type`, and
-- 256-leaf locality groups called stems.
+### What this repo includes
 
-The result is deterministic structure, uniform proof mechanics, strong locality, and simpler verifier/circuit logic than MPT.
+- The normative EIP draft and supporting design notes.
+- A Python reference implementation under [pbt/](pbt/).
+- A Rust reference implementation under [pbt-rs/](pbt-rs/).
+- Validation scripts and release checks under [scripts/](scripts/) and [tests/](tests/).
+- Evidence and handoff material under [docs/](docs/) and [EF_NETWORK_HANDOFF.md](EF_NETWORK_HANDOFF.md).
 
-This draft defines:
+### Quick Start
 
-- canonical tree shape,
-- key derivation and locality layout,
-- proof verification rules,
-- migration mechanics,
-- stem-aware gas hooks,
-- and a compliance-grade minimal verifier target for phone-class devices.
+If you want to explore the implementation locally:
 
-Hash agility is preserved. The current reference supports `blake3`, `keccak256`, and optional `poseidon2` backends.
+1. Install the development dependencies with `python -m pip install -e .[dev]`.
+2. Run the test suite with `pytest`.
+3. Try the demo with `python demo.py` or the interactive CLI with `python cli.py`.
+
+If you are reviewing release readiness, start with [IMPLEMENTATION.md](IMPLEMENTATION.md), [RELEASE_NOTES.md](RELEASE_NOTES.md), and the handoff material in [docs/evidence/](docs/evidence/).
 
 ---
 
