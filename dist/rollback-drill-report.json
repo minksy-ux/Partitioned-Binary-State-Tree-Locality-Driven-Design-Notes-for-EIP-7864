@@ -1,7 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at_utc": "2026-07-03T15:05:52.566734Z",
+  "generated_at_utc": "2026-07-04T23:47:48.187870Z",
   "overall_ok": true,
+  "baseline": "HEAD~1",
   "checks": {
     "python_tests": {
       "ok": true,
@@ -53,22 +54,22 @@
     "restored_hashes_match_original": {
       "ok": true,
       "expected": {
-        "pbt-rs-source.tar.gz": "576114acdcad1b99f298e3cbd6999880a6401e8736ae098405966aaa62167c7f",
-        "pbt-rs-sha256.txt": "5cd13f402fb59c9aa32e07c8df974a4af64ca242f9c2e1bada6db6a64485201a",
-        "network-readiness-summary.txt": "15763e8304bdc0022253fd9d5e21b68664fe55a3a1f69fe5d895f31b2a8fba0c",
-        "release-manifest.json": "d5709a0a203af58c463758b23e48ca8adb8c10388bddb1ef54c8cb13f09bbb5d",
-        "signing-status.txt": "1b77125b67d37ef5bb359ad786d4094348cd68b3423e889e880ab12bffb0aa83",
-        "sbom.spdx.json": "4c6910ac4fd094b8214db12643dbd6840e83b411f2d6caf8a651ef7d991976b0",
-        "provenance.intoto.jsonl": "a6be8f95597607b914b283a1405e94e3476328ca73f377be1d8340eccbf003ca"
+        "pbt-rs-source.tar.gz": "150c4545a07ab3cf4934c7c1e1bb9d04cb38ce5d5e90e37119e26883aa0cddb6",
+        "pbt-rs-sha256.txt": "c771a078004e94d5e2b772a9e9614871b39036d2ecdc0176f97d3ef94374c969",
+        "network-readiness-summary.txt": "f4ba848192c215bd785efe501b0357feac73ca016d7d93fcab5c993fd9bbf689",
+        "release-manifest.json": "9ed44a4f61ca243caae67fc3ab6dd2b22bf9572cae65373fddc161c5943ee976",
+        "signing-status.txt": "58e72bd196105a2b4828720d784de8081220e8aa1fd93489f48986ff67ca7ef9",
+        "sbom.spdx.json": "815e04d09a790b9c143e68c5212162f1b1aa87212a93ff9484093098f29145da",
+        "provenance.intoto.jsonl": "55464427b88ebf020e2eb191a5453479d4cd777767dde7c3c1df7524bb2b3043"
       },
       "actual": {
-        "pbt-rs-source.tar.gz": "576114acdcad1b99f298e3cbd6999880a6401e8736ae098405966aaa62167c7f",
-        "pbt-rs-sha256.txt": "5cd13f402fb59c9aa32e07c8df974a4af64ca242f9c2e1bada6db6a64485201a",
-        "network-readiness-summary.txt": "15763e8304bdc0022253fd9d5e21b68664fe55a3a1f69fe5d895f31b2a8fba0c",
-        "release-manifest.json": "d5709a0a203af58c463758b23e48ca8adb8c10388bddb1ef54c8cb13f09bbb5d",
-        "signing-status.txt": "1b77125b67d37ef5bb359ad786d4094348cd68b3423e889e880ab12bffb0aa83",
-        "sbom.spdx.json": "4c6910ac4fd094b8214db12643dbd6840e83b411f2d6caf8a651ef7d991976b0",
-        "provenance.intoto.jsonl": "a6be8f95597607b914b283a1405e94e3476328ca73f377be1d8340eccbf003ca"
+        "pbt-rs-source.tar.gz": "150c4545a07ab3cf4934c7c1e1bb9d04cb38ce5d5e90e37119e26883aa0cddb6",
+        "pbt-rs-sha256.txt": "c771a078004e94d5e2b772a9e9614871b39036d2ecdc0176f97d3ef94374c969",
+        "network-readiness-summary.txt": "f4ba848192c215bd785efe501b0357feac73ca016d7d93fcab5c993fd9bbf689",
+        "release-manifest.json": "9ed44a4f61ca243caae67fc3ab6dd2b22bf9572cae65373fddc161c5943ee976",
+        "signing-status.txt": "58e72bd196105a2b4828720d784de8081220e8aa1fd93489f48986ff67ca7ef9",
+        "sbom.spdx.json": "815e04d09a790b9c143e68c5212162f1b1aa87212a93ff9484093098f29145da",
+        "provenance.intoto.jsonl": "55464427b88ebf020e2eb191a5453479d4cd777767dde7c3c1df7524bb2b3043"
       }
     }
   }
