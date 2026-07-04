@@ -33,6 +33,7 @@ tests/test_properties.py
 tests/test_proving_profiles.py
 tests/test_stem_subscription.py
 tests/test_tree.py
+tests/test_validate_supply_chain_artifacts.py
 tests/test_verified_rpc.py
 tests/test_verify_release_artifacts.py
 tests/test_wallet.py
