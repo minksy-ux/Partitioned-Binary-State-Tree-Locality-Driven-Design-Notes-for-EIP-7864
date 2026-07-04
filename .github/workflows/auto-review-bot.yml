@@ -8,6 +8,7 @@ name: Auto Review Bot
       - completed
 
 permissions:
+  actions: read
   contents: read
   pull-requests: write
   issues: write
@@ -24,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Trace upstream workflow run
         shell: bash
@@ -45,7 +46,7 @@ jobs:
 
       - name: Resolve PR Number from workflow_run payload
         id: resolve-pr
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const pr = context.payload?.workflow_run?.pull_requests?.[0]?.number;
@@ -58,16 +59,52 @@ jobs:
 
       - name: Fetch PR Number artifact fallback
         if: ${{ steps.resolve-pr.outputs.pr == '' }}
-        uses: dawidd6/action-download-artifact@246dbf436b23d7c49e21a7ab8204ca9ecd1fe615
+        id: download-pr-artifact
+        uses: actions/github-script@v8
         with:
-          name: pr-number
-          workflow: auto-review-trigger.yml
-          run_id: ${{ github.event.workflow_run.id }}
-          workflow_conclusion: success
-          if_no_artifact_found: ignore
+          script: |
+            const fs = require('fs');
+            const runId = context.payload?.workflow_run?.id;
+            if (!runId) {
+              core.info('No workflow_run.id available; cannot fetch artifact fallback.');
+              core.setOutput('found', 'false');
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const artifacts = await github.paginate(
+              github.rest.actions.listWorkflowRunArtifacts,
+              { owner, repo, run_id: runId, per_page: 100 },
+              (response) => response.data.artifacts,
+            );
+
+            const artifact = artifacts.find((a) => a.name === 'pr-number' && !a.expired);
+            if (!artifact) {
+              core.info(`Artifact 'pr-number' was not found on run ${runId}.`);
+              core.setOutput('found', 'false');
+              return;
+            }
+
+            const download = await github.rest.actions.downloadArtifact({
+              owner,
+              repo,
+              artifact_id: artifact.id,
+              archive_format: 'zip',
+            });
+
+            fs.writeFileSync('pr-number.zip', Buffer.from(download.data));
+            core.info(`Downloaded artifact 'pr-number' (id=${artifact.id}).`);
+            core.setOutput('found', 'true');
+
+      - name: Extract PR Number artifact
+        if: ${{ steps.resolve-pr.outputs.pr == '' && steps.download-pr-artifact.outputs.found == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -o pr-number.zip
 
       - name: Read PR Number from artifact
-        if: ${{ steps.resolve-pr.outputs.pr == '' }}
+        if: ${{ steps.resolve-pr.outputs.pr == '' && steps.download-pr-artifact.outputs.found == 'true' }}
         id: read-pr-artifact
         shell: bash
         run: |
