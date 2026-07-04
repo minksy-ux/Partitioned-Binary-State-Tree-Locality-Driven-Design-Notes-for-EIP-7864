@@ -21,7 +21,9 @@ jobs:
   auto-review-bot:
     name: Run
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      contains(fromJson('["pull_request","workflow_dispatch"]'), github.event.workflow_run.event)
 
     steps:
       - name: Checkout repository
@@ -54,7 +56,7 @@ jobs:
               core.setOutput('pr', String(pr));
               core.info(`Resolved PR from workflow_run payload: ${pr}`);
             } else {
-              core.info('workflow_run payload has no linked PR; will try artifact fallback.');
+              core.info('workflow_run payload has no linked PR; will try artifact fallback, then API fallback.');
             }
 
       - name: Fetch PR Number artifact fallback
@@ -64,37 +66,48 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const runId = context.payload?.workflow_run?.id;
-            if (!runId) {
-              core.info('No workflow_run.id available; cannot fetch artifact fallback.');
+            try {
+              const runId = context.payload?.workflow_run?.id;
+              if (!runId) {
+                core.info('No workflow_run.id available; cannot fetch artifact fallback.');
+                core.setOutput('found', 'false');
+                return;
+              }
+
+              const { owner, repo } = context.repo;
+              const artifacts = await github.paginate(
+                github.rest.actions.listWorkflowRunArtifacts,
+                { owner, repo, run_id: runId, per_page: 100 },
+                (response) => response.data.artifacts,
+              );
+
+              const artifact = artifacts.find((a) => a.name === 'pr-number' && !a.expired);
+              if (!artifact) {
+                core.info(`Artifact 'pr-number' was not found on run ${runId}.`);
+                const names = artifacts.filter((a) => !a.expired).map((a) => a.name);
+                if (names.length > 0) {
+                  core.info(`Available non-expired artifacts on run ${runId}: ${names.join(', ')}`);
+                } else {
+                  core.info(`No non-expired artifacts are available on run ${runId}.`);
+                }
+                core.setOutput('found', 'false');
+                return;
+              }
+
+              const download = await github.rest.actions.downloadArtifact({
+                owner,
+                repo,
+                artifact_id: artifact.id,
+                archive_format: 'zip',
+              });
+
+              fs.writeFileSync('pr-number.zip', Buffer.from(download.data));
+              core.info(`Downloaded artifact 'pr-number' (id=${artifact.id}).`);
+              core.setOutput('found', 'true');
+            } catch (error) {
+              core.info(`Artifact fallback failed non-fatally: ${error?.message || error}`);
               core.setOutput('found', 'false');
-              return;
             }
-
-            const { owner, repo } = context.repo;
-            const artifacts = await github.paginate(
-              github.rest.actions.listWorkflowRunArtifacts,
-              { owner, repo, run_id: runId, per_page: 100 },
-              (response) => response.data.artifacts,
-            );
-
-            const artifact = artifacts.find((a) => a.name === 'pr-number' && !a.expired);
-            if (!artifact) {
-              core.info(`Artifact 'pr-number' was not found on run ${runId}.`);
-              core.setOutput('found', 'false');
-              return;
-            }
-
-            const download = await github.rest.actions.downloadArtifact({
-              owner,
-              repo,
-              artifact_id: artifact.id,
-              archive_format: 'zip',
-            });
-
-            fs.writeFileSync('pr-number.zip', Buffer.from(download.data));
-            core.info(`Downloaded artifact 'pr-number' (id=${artifact.id}).`);
-            core.setOutput('found', 'true');
 
       - name: Extract PR Number artifact
         if: ${{ steps.resolve-pr.outputs.pr == '' && steps.download-pr-artifact.outputs.found == 'true' }}
@@ -123,29 +136,102 @@ jobs:
 
           if [ -z "$FILE" ]; then
             echo "No PR artifact found."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           PR=$(tr -d '[:space:]' < "$FILE")
           if [ -z "$PR" ]; then
             echo "Artifact file is empty."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           echo "pr=$PR" >> "$GITHUB_OUTPUT"
           echo "Resolved PR from artifact: $PR"
 
+      - name: Resolve PR Number from GitHub API fallback
+        if: ${{ steps.resolve-pr.outputs.pr == '' && steps.read-pr-artifact.outputs.pr == '' }}
+        id: resolve-pr-api
+        uses: actions/github-script@v8
+        with:
+          script: |
+            try {
+              const runId = context.payload?.workflow_run?.id;
+              const headSha = context.payload?.workflow_run?.head_sha;
+              const { owner, repo } = context.repo;
+
+              if (!runId) {
+                core.info('No workflow_run.id available for API fallback.');
+                return;
+              }
+
+              // First fallback: fetch workflow run details and read linked PRs.
+              const run = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: runId });
+              const runPr = run.data?.pull_requests?.[0]?.number;
+              if (runPr) {
+                core.setOutput('pr', String(runPr));
+                core.info(`Resolved PR from getWorkflowRun API: ${runPr}`);
+                return;
+              }
+
+              // Second fallback: resolve PRs associated with the run's head commit.
+              if (headSha) {
+                const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  owner,
+                  repo,
+                  commit_sha: headSha,
+                });
+
+                const openPr = prs.data.find((pr) => pr.state === 'open');
+                const chosen = openPr ?? prs.data[0];
+                if (chosen?.number) {
+                  core.setOutput('pr', String(chosen.number));
+                  core.info(`Resolved PR from commit association API: ${chosen.number}`);
+                  return;
+                }
+              }
+
+              core.info('API fallback could not resolve a PR number.');
+            } catch (error) {
+              core.info(`API fallback failed non-fatally: ${error?.message || error}`);
+            }
+
+      - name: Summarize PR resolution path
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESOLVER="none"
+          PR=""
+
+          if [ -n "${{ steps.resolve-pr.outputs.pr }}" ]; then
+            RESOLVER="workflow_run_payload"
+            PR="${{ steps.resolve-pr.outputs.pr }}"
+          elif [ -n "${{ steps.read-pr-artifact.outputs.pr }}" ]; then
+            RESOLVER="artifact"
+            PR="${{ steps.read-pr-artifact.outputs.pr }}"
+          elif [ -n "${{ steps.resolve-pr-api.outputs.pr }}" ]; then
+            RESOLVER="github_api"
+            PR="${{ steps.resolve-pr-api.outputs.pr }}"
+          fi
+
+          {
+            echo "### PR Resolution"
+            echo "- Resolver: $RESOLVER"
+            if [ -n "$PR" ]; then
+              echo "- PR Number: $PR"
+            else
+              echo "- PR Number: not resolved"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Auto Review Bot
-        if: ${{ steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '' }}
+        if: ${{ steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '' || steps.resolve-pr-api.outputs.pr != '' }}
         id: auto-review-bot
-        uses: ethereum/eip-review-bot@dist
+        uses: ethereum/eip-review-bot@bbc63d4bd02da30703f166f15283ae2eed05916b
         with:
           token: ${{ secrets.TOKEN || github.token }}
           config: config/eip-editors.yml
-          pr_number: ${{ steps.resolve-pr.outputs.pr || steps.read-pr-artifact.outputs.pr }}
+          pr_number: ${{ steps.resolve-pr.outputs.pr || steps.read-pr-artifact.outputs.pr || steps.resolve-pr-api.outputs.pr }}
 
       - name: No PR context, skip gracefully
-        if: ${{ steps.resolve-pr.outputs.pr == '' && steps.read-pr-artifact.outputs.pr == '' }}
+        if: ${{ steps.resolve-pr.outputs.pr == '' && steps.read-pr-artifact.outputs.pr == '' && steps.resolve-pr-api.outputs.pr == '' }}
         run: echo "No PR number could be resolved; skipping without failure."

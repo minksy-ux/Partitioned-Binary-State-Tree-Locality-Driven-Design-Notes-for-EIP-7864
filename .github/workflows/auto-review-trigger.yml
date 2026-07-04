@@ -52,7 +52,7 @@ jobs:
           echo "pr=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Upload PR number artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: pr-number
           path: pr-number.txt
