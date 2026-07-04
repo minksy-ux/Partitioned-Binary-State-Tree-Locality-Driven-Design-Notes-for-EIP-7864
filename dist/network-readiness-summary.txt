@@ -1,6 +1,6 @@
 Network readiness bundle generated
-Timestamp (UTC): 2026-07-04T10:59:42Z
-Git commit: b2ce654e47586f203f29e5b22e997b89f0589268
-Tarball: /workspaces/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/dist/pbt-rs-source.tar.gz
-Checksum file: /workspaces/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/dist/pbt-rs-sha256.txt
-Manifest file: /workspaces/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/dist/release-manifest.json
+Timestamp (UTC): 2026-07-04T11:32:50Z
+Git commit: 342027548540c6a2d8355666c2f8b35be820f91f
+Tarball: /home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/dist/pbt-rs-source.tar.gz
+Checksum file: /home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/dist/pbt-rs-sha256.txt
+Manifest file: /home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/dist/release-manifest.json

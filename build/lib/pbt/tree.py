@@ -14,10 +14,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .constants import STEM_SUBTREE_WIDTH, EMPTY_VALUE
+from .constants import EMPTY_VALUE, STEM_SUBTREE_WIDTH
 from .hash import tree_hash
-from .nodes import EmptyNode, InternalNode, StemNode, Node
-
+from .nodes import STEM_HASH_DOMAIN, EmptyNode, InternalNode, Node, StemNode
 
 # ---------------------------------------------------------------------------
 # Bit helpers
@@ -330,7 +329,7 @@ def _hash_stem(stem_prefix: bytes, values: list[bytes]) -> bytes:
     This function is the canonical commitment to the stem's contents and
     MUST be used both in node_hash() and in proof verification.
     """
-    payload = stem_prefix + b"".join(values)
+    payload = STEM_HASH_DOMAIN + stem_prefix + b"".join(values)
     return tree_hash(payload)
 
 
