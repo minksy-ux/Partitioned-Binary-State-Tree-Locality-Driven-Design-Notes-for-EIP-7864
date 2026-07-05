@@ -59,12 +59,12 @@ jobs:
 
       - name: Fetch PR Number
         if: ${{ steps.resolve-pr.outputs.pr == '' }}
-        uses: dawidd6/action-download-artifact@246dbf436b23d7c49e21a7ab8204ca9ecd1fe615
+        uses: actions/download-artifact@v5
         with:
           name: pr-number
-          workflow: auto-review-trigger.yml
-          run_id: ${{ github.event.workflow_run.id }}
-          repo: ${{ github.repository }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
 
       - name: Read PR Number from artifact
         if: ${{ steps.resolve-pr.outputs.pr == '' }}
