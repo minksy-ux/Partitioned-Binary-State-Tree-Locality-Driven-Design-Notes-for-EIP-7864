@@ -1,4 +1,5 @@
 # EIP-7864: Partitioned Binary State Tree
+
 ## Network Handoff
 For Ethereum Foundation and client-team evaluation artifacts, release-bundle steps, and readiness boundaries, see [EF_NETWORK_HANDOFF.md](EF_NETWORK_HANDOFF.md).
 | Field | Value |
