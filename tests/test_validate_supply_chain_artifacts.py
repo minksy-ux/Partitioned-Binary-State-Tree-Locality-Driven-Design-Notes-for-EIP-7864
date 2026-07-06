@@ -50,6 +50,10 @@ def test_validate_supply_chain_allows_waiver_before_release_mode_signing_failure
 ) -> None:
     _write_required_artifacts(tmp_path)
     dist = tmp_path / "dist"
+    # Override signing-status.txt to "signing: enabled" so the waiver validation
+    # code path is actually exercised (the validator only checks the waiver when
+    # signing is enabled in the status file).
+    (dist / "signing-status.txt").write_text("signing: enabled\n", encoding="utf-8")
     (dist / "signing-waiver.json").write_text(
         json.dumps(
             {
@@ -64,7 +68,6 @@ def test_validate_supply_chain_allows_waiver_before_release_mode_signing_failure
 
     env = {
         "PBT_RELEASE_MODE": "1",
-        "PBT_SIGNING_ENABLED": "1",
     }
 
     proc = subprocess.run(
@@ -83,11 +86,13 @@ def test_validate_supply_chain_allows_waiver_before_release_mode_signing_failure
 def test_validate_supply_chain_allows_unsigned_release_without_waiver(
     tmp_path: Path,
 ) -> None:
+    # signing-status.txt says "signing: unavailable" (from _write_required_artifacts),
+    # so no waiver is needed — the validator only validates the waiver when signing
+    # is explicitly enabled.
     _write_required_artifacts(tmp_path)
 
     env = {
         "PBT_RELEASE_MODE": "1",
-        "PBT_SIGNING_ENABLED": "1",
     }
 
     proc = subprocess.run(
