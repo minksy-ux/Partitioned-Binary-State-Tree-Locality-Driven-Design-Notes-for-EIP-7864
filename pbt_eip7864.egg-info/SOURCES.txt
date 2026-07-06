@@ -21,6 +21,7 @@ pbt_eip7864.egg-info/SOURCES.txt
 pbt_eip7864.egg-info/dependency_links.txt
 pbt_eip7864.egg-info/requires.txt
 pbt_eip7864.egg-info/top_level.txt
+tests/test_auto_review_bot_workflow.py
 tests/test_embedding.py
 tests/test_formal.py
 tests/test_formal_dashboard.py
