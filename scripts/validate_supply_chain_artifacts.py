@@ -21,13 +21,34 @@ SIGNING_WAIVER = DIST / "signing-waiver.json"
 TARBALL = DIST / "pbt-rs-source.tar.gz"
 
 
-def _is_release_mode() -> bool:
-    env = os.environ.get("PBT_RELEASE_MODE", "").strip().lower()
-    if env in {"1", "true", "yes", "on"}:
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
         return True
-    if env in {"0", "false", "no", "off"}:
+    if value in {"0", "false", "no", "off"}:
         return False
-    return False
+    return default
+
+
+def _validate_waiver() -> str | None:
+    if not SIGNING_WAIVER.exists():
+        return "missing signing waiver artifact: dist/signing-waiver.json"
+    try:
+        waiver = json.loads(SIGNING_WAIVER.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return f"invalid signing waiver json: {exc}"
+    required_fields = ["reason", "approved_by", "approved_at_utc", "expires_at_utc"]
+    missing = [field for field in required_fields if not waiver.get(field)]
+    if missing:
+        return "signing waiver missing fields: " + ", ".join(missing)
+    return None
+
+
+def _is_release_mode() -> bool:
+    return _env_flag("PBT_RELEASE_MODE", default=False)
 
 
 def fail(message: str) -> int:
@@ -73,16 +94,20 @@ def main() -> int:
         return fail("provenance subject digest.sha256 must be a 64-char lowercase hex string")
 
     signing_status = (DIST / "signing-status.txt").read_text(encoding="utf-8")
-    if "signing: enabled" in signing_status:
-        if SIGNING_WAIVER.exists():
-            try:
-                waiver = json.loads(SIGNING_WAIVER.read_text(encoding="utf-8"))
-            except Exception as exc:
-                return fail(f"invalid signing waiver json: {exc}")
-            required_fields = ["reason", "approved_by", "approved_at_utc", "expires_at_utc"]
-            missing = [field for field in required_fields if not waiver.get(field)]
-            if missing:
-                return fail("signing waiver missing fields: " + ", ".join(missing))
+    override_unsigned = _env_flag("PBT_SIGNING_GRACEFUL_OVERRIDE", default=False)
+    if "signing: enabled" not in signing_status:
+        if not override_unsigned:
+            return fail(
+                "strict signing is required by default; set "
+                "PBT_SIGNING_GRACEFUL_OVERRIDE=1 to allow unsigned artifacts with waiver"
+            )
+        waiver_error = _validate_waiver()
+        if waiver_error:
+            return fail(waiver_error)
+    elif SIGNING_WAIVER.exists():
+        waiver_error = _validate_waiver()
+        if waiver_error:
+            return fail(waiver_error)
 
     release_mode = _is_release_mode()
     if release_mode and TARBALL.exists():

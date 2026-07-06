@@ -18,6 +18,7 @@ jobs:
     env:
       PBT_RELEASE_MODE: ${{ (github.ref_name == 'main' || github.ref_name == 'master') && '1' || '0' }}
       PBT_SIGNING_ENABLED: ${{ secrets.PBT_SIGNING_KEY != '' && '1' || '0' }}
+      PBT_SIGNING_GRACEFUL_OVERRIDE: ${{ vars.PBT_SIGNING_GRACEFUL_OVERRIDE != '' && vars.PBT_SIGNING_GRACEFUL_OVERRIDE || '0' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -130,6 +131,7 @@ jobs:
       - name: Validate supply chain artifacts
         env:
           PBT_SIGNING_ENABLED: ${{ env.PBT_SIGNING_ENABLED }}
+          PBT_SIGNING_GRACEFUL_OVERRIDE: ${{ env.PBT_SIGNING_GRACEFUL_OVERRIDE }}
           SUPPLY_CHAIN_SIGNING: ${{ env.PBT_SIGNING_ENABLED == '1' && 'enabled' || 'disabled' }}
         run: python scripts/validate_supply_chain_artifacts.py
 
