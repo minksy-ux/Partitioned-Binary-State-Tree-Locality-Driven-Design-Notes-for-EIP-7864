@@ -8,6 +8,8 @@ PBT workloads.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -135,6 +137,40 @@ class ProvingScenario:
             raise ValueError("scenario name must be non-empty")
 
 
+@dataclass(frozen=True)
+class CalibrationRecord:
+    """Benchmark-derived hash profile constants with provenance metadata."""
+
+    hash_id: str
+    circuit_constraints_per_hash: int
+    stark_trace_rows_per_hash: int
+    benchmark_suite: str
+    benchmark_commit: str
+    benchmark_command: str
+    measured_at_utc: str
+    sample_count: int
+    notes: str = ""
+    binius_integration: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.hash_id:
+            raise ValueError("hash_id must be non-empty")
+        if self.circuit_constraints_per_hash <= 0:
+            raise ValueError("circuit_constraints_per_hash must be positive")
+        if self.stark_trace_rows_per_hash <= 0:
+            raise ValueError("stark_trace_rows_per_hash must be positive")
+        if not self.benchmark_suite:
+            raise ValueError("benchmark_suite must be non-empty")
+        if not self.benchmark_commit:
+            raise ValueError("benchmark_commit must be non-empty")
+        if not self.benchmark_command:
+            raise ValueError("benchmark_command must be non-empty")
+        if not self.measured_at_utc:
+            raise ValueError("measured_at_utc must be non-empty")
+        if self.sample_count <= 0:
+            raise ValueError("sample_count must be positive")
+
+
 _profiles: dict[str, HashCostProfile] = {
     # Deliberately coarse defaults for protocol-planning comparisons.
     "blake3": HashCostProfile(
@@ -169,10 +205,66 @@ _profiles: dict[str, HashCostProfile] = {
     ),
 }
 
+_calibration_provenance: dict[str, CalibrationRecord] = {}
+
 
 def register_hash_cost_profile(profile: HashCostProfile) -> None:
     """Register or replace a hash proving profile."""
     _profiles[profile.hash_id] = profile
+
+
+def load_calibration_records(path: str | Path) -> list[CalibrationRecord]:
+    """Load benchmark calibration records from JSON file."""
+    file_path = Path(path)
+    data = json.loads(file_path.read_text(encoding="utf-8"))
+    records_raw = data.get("records") if isinstance(data, dict) else None
+    if not isinstance(records_raw, list):
+        raise ValueError("calibration file must contain an object with a records list")
+
+    records: list[CalibrationRecord] = []
+    for item in records_raw:
+        if not isinstance(item, dict):
+            raise ValueError("calibration record entries must be objects")
+        records.append(CalibrationRecord(**item))
+    return records
+
+
+def register_calibrated_profiles(
+    records: list[CalibrationRecord],
+    suffix: str = "_calibrated",
+) -> list[str]:
+    """Register benchmark-derived profiles and retain provenance metadata."""
+    if not suffix:
+        raise ValueError("suffix must be non-empty")
+
+    registered_ids: list[str] = []
+    for record in records:
+        profile_id = f"{record.hash_id}{suffix}"
+        register_hash_cost_profile(
+            HashCostProfile(
+                hash_id=profile_id,
+                circuit_constraints_per_hash=record.circuit_constraints_per_hash,
+                stark_trace_rows_per_hash=record.stark_trace_rows_per_hash,
+                binius_integration=record.binius_integration,
+            )
+        )
+        _calibration_provenance[profile_id] = record
+        registered_ids.append(profile_id)
+    return registered_ids
+
+
+def register_calibrated_profiles_from_file(
+    path: str | Path,
+    suffix: str = "_calibrated",
+) -> list[str]:
+    """Load benchmark records from JSON and register calibrated profiles."""
+    records = load_calibration_records(path)
+    return register_calibrated_profiles(records, suffix=suffix)
+
+
+def calibration_record_for_profile(hash_id: str) -> CalibrationRecord | None:
+    """Return calibration provenance metadata for a registered profile id."""
+    return _calibration_provenance.get(hash_id)
 
 
 def available_hash_cost_profile_ids() -> list[str]:
