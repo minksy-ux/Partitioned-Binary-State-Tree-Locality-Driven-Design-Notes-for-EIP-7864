@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "package_type": "ethereum-foundation-handoff",
-  "generated_at_utc": "2026-07-23T04:07:05.674388Z",
+  "generated_at_utc": "2026-07-23T05:08:55.437083Z",
   "repository": {
     "name": "https://github.com/minksy-ux/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864.git",
-    "branch": "copilot/fix-readiness-job-failure-please-work",
-    "commit": "c22cd9d10db03a2a46535c0db8624db9c1558fd9"
+    "branch": "copilot/fix-readiness-job",
+    "commit": "4765eec90e8187574275bf2f8fdfc9c9823751a2"
   },
   "readiness": {
     "production_eligible": true,
@@ -16,15 +16,15 @@
   "artifacts": [
     {
       "path": "dist/pbt-rs-source.tar.gz",
-      "sha256": "78a6386c6f538710ae2ed59eb6c118246f4bb6fc6e35a976dee779228aa73ce5"
+      "sha256": "9ca9c5544c173bca4b8af697a696c72481613b807116c39e62fc892433464399"
     },
     {
       "path": "dist/pbt-rs-sha256.txt",
-      "sha256": "fb39769e2c414670f8bdcad73493c3b355a9ac615c6b53bb2874ee862d58d477"
+      "sha256": "365dd715e6b54d66c3fef1cd4e157afe000b634fb4e6709cc87ed18339aecd7b"
     },
     {
       "path": "dist/network-readiness-summary.txt",
-      "sha256": "3a00fbc324b27011adb88af97719f7e400e6d5ee9733f29f2e7658c2364aadca"
+      "sha256": "ec54f3cd035b1658bcab85f859691cf3bc51e35feca58caaf9e62feae7c299ca"
     }
   ],
   "release_manifest_path": "dist/release-manifest.json",

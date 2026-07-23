@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at_utc": "2026-07-23T04:06:46.690303Z",
+  "generated_at_utc": "2026-07-23T05:08:33.607572Z",
   "overall_ok": true,
   "baseline": "HEAD~1",
   "checks": {
@@ -25,7 +25,7 @@
         "--",
         "--nocapture"
       ],
-      "output_excerpt": "\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s\n     Running unittests src/lib.rs (pbt-rs/target/debug/deps/pbt_rs-8ba639e6ae785896)\n     Running unittests src/bin/conformance_case.rs (pbt-rs/target/debug/deps/conformance_case-ec405a4016813c01)\n     Running tests/core_roundtrip.rs (pbt-rs/target/debug/deps/core_roundtrip-f43c2b330c1df540)\n     Running tests/ethereum_keys.rs (pbt-rs/target/debug/deps/ethereum_keys-8e65deb7708aa2b3)\n     Running tests/hash_mode.rs (pbt-rs/target/debug/deps/hash_mode-873612fcf087ad7e)\n     Running tests/locality_vectors.rs (pbt-rs/target/debug/deps/locality_vectors-8689252ab53a2ad1)\n     Running tests/migration.rs (pbt-rs/target/debug/deps/migration-f2107576a6481273)\n     Running tests/proof_format.rs (pbt-rs/target/debug/deps/proof_format-04552fe57a3f1ad6)\n     Running tests/property.rs (pbt-rs/target/debug/deps/property-d5fa8e5dea4971f9)\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\n     Running tests/vector_fold.rs (pbt-rs/target/debug/deps/vector_fold-36c09dde5f89d601)\n   Doc-tests pbt_rs"
+      "output_excerpt": "\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s\n     Running unittests src/lib.rs (pbt-rs/target/debug/deps/pbt_rs-8ba639e6ae785896)\n     Running unittests src/bin/conformance_case.rs (pbt-rs/target/debug/deps/conformance_case-ec405a4016813c01)\n     Running tests/core_roundtrip.rs (pbt-rs/target/debug/deps/core_roundtrip-f43c2b330c1df540)\n     Running tests/ethereum_keys.rs (pbt-rs/target/debug/deps/ethereum_keys-8e65deb7708aa2b3)\n     Running tests/hash_mode.rs (pbt-rs/target/debug/deps/hash_mode-873612fcf087ad7e)\n     Running tests/locality_vectors.rs (pbt-rs/target/debug/deps/locality_vectors-8689252ab53a2ad1)\n     Running tests/migration.rs (pbt-rs/target/debug/deps/migration-f2107576a6481273)\n     Running tests/proof_format.rs (pbt-rs/target/debug/deps/proof_format-04552fe57a3f1ad6)\n     Running tests/property.rs (pbt-rs/target/debug/deps/property-d5fa8e5dea4971f9)\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\n     Running tests/vector_fold.rs (pbt-rs/target/debug/deps/vector_fold-36c09dde5f89d601)\n   Doc-tests pbt_rs"
     },
     "cross_client_conformance": {
       "ok": true,
@@ -54,22 +54,22 @@
     "restored_hashes_match_original": {
       "ok": true,
       "expected": {
-        "pbt-rs-source.tar.gz": "150c4545a07ab3cf4934c7c1e1bb9d04cb38ce5d5e90e37119e26883aa0cddb6",
-        "pbt-rs-sha256.txt": "c771a078004e94d5e2b772a9e9614871b39036d2ecdc0176f97d3ef94374c969",
-        "network-readiness-summary.txt": "0bc241c6021f25407d1fc97d51265b8b310959fae7f6334054cd087501edc63b",
-        "release-manifest.json": "653e63700bd969a3d4d6feb505cd55760c8a170ebbf02bb7039c97f66446f90f",
+        "pbt-rs-source.tar.gz": "78a6386c6f538710ae2ed59eb6c118246f4bb6fc6e35a976dee779228aa73ce5",
+        "pbt-rs-sha256.txt": "fb39769e2c414670f8bdcad73493c3b355a9ac615c6b53bb2874ee862d58d477",
+        "network-readiness-summary.txt": "3a00fbc324b27011adb88af97719f7e400e6d5ee9733f29f2e7658c2364aadca",
+        "release-manifest.json": "14e949f84760a881fcfaf9dead4240d0361b6971c9cbf919a99ef427be066428",
         "signing-status.txt": "58e72bd196105a2b4828720d784de8081220e8aa1fd93489f48986ff67ca7ef9",
-        "sbom.spdx.json": "bb5df16a0f67e3f8b7ae75fab1a98c448a01a603ad57e8f7dff6e61641493c99",
-        "provenance.intoto.jsonl": "55464427b88ebf020e2eb191a5453479d4cd777767dde7c3c1df7524bb2b3043"
+        "sbom.spdx.json": "a0256e31cbf72aa956bacc6ba27844a44de4bfc6fd27821e75dd3f4c751a01e7",
+        "provenance.intoto.jsonl": "bc1bf56186818b05e3307d3f12a33a1d6097ec72a1d668a06ec7b5c3db33a949"
       },
       "actual": {
-        "pbt-rs-source.tar.gz": "150c4545a07ab3cf4934c7c1e1bb9d04cb38ce5d5e90e37119e26883aa0cddb6",
-        "pbt-rs-sha256.txt": "c771a078004e94d5e2b772a9e9614871b39036d2ecdc0176f97d3ef94374c969",
-        "network-readiness-summary.txt": "0bc241c6021f25407d1fc97d51265b8b310959fae7f6334054cd087501edc63b",
-        "release-manifest.json": "653e63700bd969a3d4d6feb505cd55760c8a170ebbf02bb7039c97f66446f90f",
+        "pbt-rs-source.tar.gz": "78a6386c6f538710ae2ed59eb6c118246f4bb6fc6e35a976dee779228aa73ce5",
+        "pbt-rs-sha256.txt": "fb39769e2c414670f8bdcad73493c3b355a9ac615c6b53bb2874ee862d58d477",
+        "network-readiness-summary.txt": "3a00fbc324b27011adb88af97719f7e400e6d5ee9733f29f2e7658c2364aadca",
+        "release-manifest.json": "14e949f84760a881fcfaf9dead4240d0361b6971c9cbf919a99ef427be066428",
         "signing-status.txt": "58e72bd196105a2b4828720d784de8081220e8aa1fd93489f48986ff67ca7ef9",
-        "sbom.spdx.json": "bb5df16a0f67e3f8b7ae75fab1a98c448a01a603ad57e8f7dff6e61641493c99",
-        "provenance.intoto.jsonl": "55464427b88ebf020e2eb191a5453479d4cd777767dde7c3c1df7524bb2b3043"
+        "sbom.spdx.json": "a0256e31cbf72aa956bacc6ba27844a44de4bfc6fd27821e75dd3f4c751a01e7",
+        "provenance.intoto.jsonl": "bc1bf56186818b05e3307d3f12a33a1d6097ec72a1d668a06ec7b5c3db33a949"
       }
     }
   }
