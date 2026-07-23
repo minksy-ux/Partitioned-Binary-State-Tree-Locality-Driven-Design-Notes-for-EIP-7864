@@ -27,6 +27,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Guard against tracked Python bytecode artifacts
+        shell: bash
+        run: bash scripts/check_tracked_cache_artifacts.sh
+
       - name: Trace upstream workflow run
         shell: bash
         run: |
