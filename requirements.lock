@@ -48,7 +48,7 @@ oauthlib==3.2.2
 packaging==24.0
 passlib==1.7.4
 pathspec==1.1.1
--e git+https://github.com/minksy-ux/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864.git@f714308effd5271bdaf58d72a260400d3916bec3#egg=pbt_eip7864
+pbt-eip7864 @ file://.
 pexpect==4.9.0
 pip==24.0
 pipx==1.15.0
