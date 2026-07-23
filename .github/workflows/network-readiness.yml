@@ -18,7 +18,7 @@ jobs:
     env:
       PBT_RELEASE_MODE: ${{ (github.ref_name == 'main' || github.ref_name == 'master') && '1' || '0' }}
       PBT_SIGNING_ENABLED: ${{ secrets.PBT_SIGNING_KEY != '' && '1' || '0' }}
-      PBT_SIGNING_GRACEFUL_OVERRIDE: ${{ (vars.PBT_SIGNING_GRACEFUL_OVERRIDE != '' && vars.PBT_SIGNING_GRACEFUL_OVERRIDE) || (secrets.PBT_SIGNING_KEY == '' && '1') || '0' }}
+      PBT_SIGNING_GRACEFUL_OVERRIDE: ${{ (vars.PBT_SIGNING_GRACEFUL_OVERRIDE != '' && vars.PBT_SIGNING_GRACEFUL_OVERRIDE) || (secrets.PBT_SIGNING_KEY != '' && '0') || '1' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
