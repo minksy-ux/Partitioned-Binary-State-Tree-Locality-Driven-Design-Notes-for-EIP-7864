@@ -39,10 +39,11 @@ def _normalize_lock(raw: str) -> str:
     cwd = Path.cwd().resolve().as_posix()
     normalized_lines: list[str] = []
     for line in raw.splitlines():
-        # Match both "pkg @ file:///abs/path" and "-e file:///abs/path" forms.
+        # Match both "pkg @ file:///abs/path" and "-e file:///abs/path" forms,
+        # preserving trailing whitespace (group 3).
         line = re.sub(
-            r"(@ file://)" + re.escape(cwd) + r"(/?)(\s*)$",
-            r"\g<1>.",
+            r"((?:@ |-e )file://)" + re.escape(cwd) + r"(/?)(\s*)$",
+            r"\g<1>.\g<3>",
             line,
         )
         normalized_lines.append(line)
