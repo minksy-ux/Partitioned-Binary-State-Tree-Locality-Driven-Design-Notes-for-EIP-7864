@@ -3,7 +3,7 @@
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "pbt-eip7864",
   "creationInfo": {
-    "created": "2026-07-23T06:32:56.595039Z",
+    "created": "2026-07-23T07:41:52.925954Z",
     "creators": [
       "Tool: scripts/generate_supply_chain_artifacts.py"
     ]
@@ -137,7 +137,7 @@
     {
       "SPDXID": "SPDXRef-Package-hypothesis",
       "name": "hypothesis",
-      "versionInfo": "6.160.0"
+      "versionInfo": "6.161.0"
     },
     {
       "SPDXID": "SPDXRef-Package-idna",

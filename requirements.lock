@@ -23,7 +23,7 @@ distro==1.9.0
 distro-info==1.7+build1
 httplib2==0.20.4
 hyperlink==21.0.0
-hypothesis==6.160.0
+hypothesis==6.161.0
 idna==3.6
 incremental==22.10.0
 iniconfig==2.3.0
