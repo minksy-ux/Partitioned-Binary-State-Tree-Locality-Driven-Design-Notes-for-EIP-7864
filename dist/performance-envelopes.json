@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
-  "generated_at_utc": "2026-07-04T23:47:29.463986Z",
-  "generator_commit": "02d4817943788839999cb3fd89d769a06531c752",
+  "generated_at_utc": "2026-07-23T04:06:45.717836Z",
+  "generator_commit": "c22cd9d10db03a2a46535c0db8624db9c1558fd9",
   "calibration_source": "pbt-rs/tests/vectors/proving_profile_calibration.json",
   "registered_calibrated_profiles": [
     "blake3_calibrated",

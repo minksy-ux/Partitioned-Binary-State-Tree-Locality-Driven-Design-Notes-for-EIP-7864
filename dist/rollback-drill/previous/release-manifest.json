@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "artifact_type": "network_readiness_release_bundle",
-  "generated_at_utc": "2026-07-04T23:47:45Z",
+  "generated_at_utc": "2026-07-04T23:48:01Z",
   "git_commit": "02d4817943788839999cb3fd89d769a06531c752",
   "artifacts": [
     {
@@ -14,7 +14,7 @@
     },
     {
       "path": "dist/network-readiness-summary.txt",
-      "sha256": "36b551536ee60cd212e00c86c03314162acf2058b7868c88b8a5019a64cd9911"
+      "sha256": "ba21ca699537b90d742ad1f62bc0e4db1a4ac6dc7725fbe89ef35c8f5615979a"
     }
   ],
   "signing": {
