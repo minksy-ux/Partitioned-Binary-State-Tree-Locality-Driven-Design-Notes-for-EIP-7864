@@ -3,7 +3,7 @@
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "pbt-eip7864",
   "creationInfo": {
-    "created": "2026-07-04T23:48:02.549952Z",
+    "created": "2026-07-23T04:16:33.979671Z",
     "creators": [
       "Tool: scripts/generate_supply_chain_artifacts.py"
     ]
@@ -12,7 +12,7 @@
     {
       "SPDXID": "SPDXRef-Package-argcomplete",
       "name": "argcomplete",
-      "versionInfo": "3.6.3"
+      "versionInfo": "3.7.0"
     },
     {
       "SPDXID": "SPDXRef-Package-ast_serialize",
@@ -137,7 +137,7 @@
     {
       "SPDXID": "SPDXRef-Package-hypothesis",
       "name": "hypothesis",
-      "versionInfo": "6.156.1"
+      "versionInfo": "6.160.0"
     },
     {
       "SPDXID": "SPDXRef-Package-idna",
@@ -197,7 +197,7 @@
     {
       "SPDXID": "SPDXRef-Package-librt",
       "name": "librt",
-      "versionInfo": "0.12.0"
+      "versionInfo": "0.13.0"
     },
     {
       "SPDXID": "SPDXRef-Package-markdown-it-py",
@@ -222,7 +222,7 @@
     {
       "SPDXID": "SPDXRef-Package-mypy",
       "name": "mypy",
-      "versionInfo": "2.1.0"
+      "versionInfo": "2.3.0"
     },
     {
       "SPDXID": "SPDXRef-Package-mypy_extensions",
@@ -272,7 +272,7 @@
     {
       "SPDXID": "SPDXRef-Package-pipx",
       "name": "pipx",
-      "versionInfo": "1.14.1"
+      "versionInfo": "1.15.0"
     },
     {
       "SPDXID": "SPDXRef-Package-platformdirs",
@@ -392,7 +392,7 @@
     {
       "SPDXID": "SPDXRef-Package-ruff",
       "name": "ruff",
-      "versionInfo": "0.15.20"
+      "versionInfo": "0.15.22"
     },
     {
       "SPDXID": "SPDXRef-Package-s3transfer",

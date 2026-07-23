@@ -1,20 +1,20 @@
 {
   "schema_version": "1.0.0",
   "artifact_type": "network_readiness_release_bundle",
-  "generated_at_utc": "2026-07-04T23:48:01Z",
-  "git_commit": "02d4817943788839999cb3fd89d769a06531c752",
+  "generated_at_utc": "2026-07-23T04:07:00Z",
+  "git_commit": "c22cd9d10db03a2a46535c0db8624db9c1558fd9",
   "artifacts": [
     {
       "path": "dist/pbt-rs-source.tar.gz",
-      "sha256": "150c4545a07ab3cf4934c7c1e1bb9d04cb38ce5d5e90e37119e26883aa0cddb6"
+      "sha256": "78a6386c6f538710ae2ed59eb6c118246f4bb6fc6e35a976dee779228aa73ce5"
     },
     {
       "path": "dist/pbt-rs-sha256.txt",
-      "sha256": "c771a078004e94d5e2b772a9e9614871b39036d2ecdc0176f97d3ef94374c969"
+      "sha256": "fb39769e2c414670f8bdcad73493c3b355a9ac615c6b53bb2874ee862d58d477"
     },
     {
       "path": "dist/network-readiness-summary.txt",
-      "sha256": "ba21ca699537b90d742ad1f62bc0e4db1a4ac6dc7725fbe89ef35c8f5615979a"
+      "sha256": "3a17c85464b00535a3a98fc12eb28d7b737c124507805ef055bcfd1c32dc9c13"
     }
   ],
   "signing": {
