@@ -38,7 +38,7 @@ If you are reviewing release readiness, start with [IMPLEMENTATION.md](IMPLEMENT
 
 ### Repository Hygiene
 
-Python cache/bytecode artifacts are never allowed as tracked files in this repository.
+Generated artifacts are never allowed as tracked files in this repository, including Python cache/bytecode files and Rust build output under `pbt-rs/target/`.
 
 - CI enforces this via `scripts/check_tracked_cache_artifacts.sh`.
 - Install local hooks once per clone to catch this before commit:
