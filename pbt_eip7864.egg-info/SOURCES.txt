@@ -33,6 +33,7 @@ tests/test_metadata.py
 tests/test_minimal_verifier.py
 tests/test_properties.py
 tests/test_proving_profiles.py
+tests/test_rust_manifest.py
 tests/test_stem_subscription.py
 tests/test_tree.py
 tests/test_validate_supply_chain_artifacts.py
