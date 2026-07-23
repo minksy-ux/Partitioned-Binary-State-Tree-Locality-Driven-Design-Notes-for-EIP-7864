@@ -21,7 +21,33 @@ def _run(cmd: list[str]) -> str:
 
 
 def _pip_freeze() -> str:
-    return _run([sys.executable, "-m", "pip", "freeze", "--all"])
+    raw = _run([sys.executable, "-m", "pip", "freeze", "--all"])
+    return _normalize_lock(raw)
+
+
+def _normalize_lock(raw: str) -> str:
+    """Replace absolute local file:// paths with a portable relative reference.
+
+    ``pip freeze`` records locally-installed packages as
+    ``pkg @ file:///abs/path/to/repo``.  The absolute path is
+    environment-specific (e.g. ``/home/runner/work/...`` on GitHub-hosted
+    runners) and makes the committed ``requirements.lock`` non-reproducible
+    across machines.  Normalise those entries to ``pkg @ file:.`` so the
+    lock file is portable.
+    """
+    import re
+
+    cwd = Path.cwd().resolve().as_posix()
+    normalized_lines: list[str] = []
+    for line in raw.splitlines():
+        # Match both "pkg @ file:///abs/path" and "-e file:///abs/path" forms.
+        line = re.sub(
+            r"(@ file://)" + re.escape(cwd) + r"(/?)(\s*)$",
+            r"\g<1>.",
+            line,
+        )
+        normalized_lines.append(line)
+    return "\n".join(normalized_lines) + ("\n" if raw.endswith("\n") else "")
 
 
 def _sha256(path: Path) -> str:
