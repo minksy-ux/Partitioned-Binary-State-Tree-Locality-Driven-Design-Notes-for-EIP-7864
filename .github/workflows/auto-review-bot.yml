@@ -59,7 +59,7 @@ jobs:
 
       - name: Fetch PR Number
         if: ${{ steps.resolve-pr.outputs.pr == '' }}
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: pr-number
           repository: ${{ github.repository }}
