@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at_utc": "2026-07-04T23:47:48.187870Z",
+  "generated_at_utc": "2026-07-23T04:06:46.690303Z",
   "overall_ok": true,
   "baseline": "HEAD~1",
   "checks": {
@@ -13,7 +13,7 @@
         "-q",
         "tests/test_minimal_verifier.py"
       ],
-      "output_excerpt": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864\nconfigfile: pyproject.toml\nplugins: hypothesis-6.156.1\ncollected 6 items\n\ntests/test_minimal_verifier.py ......                                    [100%]\n\n============================== 6 passed in 0.05s ==============================="
+      "output_excerpt": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864\nconfigfile: pyproject.toml\nplugins: hypothesis-6.160.0\ncollected 6 items\n\ntests/test_minimal_verifier.py ......                                    [100%]\n\n============================== 6 passed in 0.05s ==============================="
     },
     "rust_tests": {
       "ok": true,
@@ -25,7 +25,7 @@
         "--",
         "--nocapture"
       ],
-      "output_excerpt": "\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s\n     Running unittests src/lib.rs (pbt-rs/target/debug/deps/pbt_rs-1dc8503b4ec19e4e)\n     Running unittests src/bin/conformance_case.rs (pbt-rs/target/debug/deps/conformance_case-d33172a33fbf973b)\n     Running tests/core_roundtrip.rs (pbt-rs/target/debug/deps/core_roundtrip-6b47c919a4378434)\n     Running tests/ethereum_keys.rs (pbt-rs/target/debug/deps/ethereum_keys-490234392b5891fe)\n     Running tests/hash_mode.rs (pbt-rs/target/debug/deps/hash_mode-754083f96ae6ccdf)\n     Running tests/locality_vectors.rs (pbt-rs/target/debug/deps/locality_vectors-8d2091ef83ce4ca3)\n     Running tests/migration.rs (pbt-rs/target/debug/deps/migration-10b2ea83aa89562b)\n     Running tests/proof_format.rs (pbt-rs/target/debug/deps/proof_format-10a8922de6b31e33)\n     Running tests/property.rs (pbt-rs/target/debug/deps/property-bda341f5b2e5eaa1)\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\n     Running tests/vector_fold.rs (pbt-rs/target/debug/deps/vector_fold-13d05a46c382716e)\n   Doc-tests pbt_rs"
+      "output_excerpt": "\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s\n     Running unittests src/lib.rs (pbt-rs/target/debug/deps/pbt_rs-8ba639e6ae785896)\n     Running unittests src/bin/conformance_case.rs (pbt-rs/target/debug/deps/conformance_case-ec405a4016813c01)\n     Running tests/core_roundtrip.rs (pbt-rs/target/debug/deps/core_roundtrip-f43c2b330c1df540)\n     Running tests/ethereum_keys.rs (pbt-rs/target/debug/deps/ethereum_keys-8e65deb7708aa2b3)\n     Running tests/hash_mode.rs (pbt-rs/target/debug/deps/hash_mode-873612fcf087ad7e)\n     Running tests/locality_vectors.rs (pbt-rs/target/debug/deps/locality_vectors-8689252ab53a2ad1)\n     Running tests/migration.rs (pbt-rs/target/debug/deps/migration-f2107576a6481273)\n     Running tests/proof_format.rs (pbt-rs/target/debug/deps/proof_format-04552fe57a3f1ad6)\n     Running tests/property.rs (pbt-rs/target/debug/deps/property-d5fa8e5dea4971f9)\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\n     Running tests/vector_fold.rs (pbt-rs/target/debug/deps/vector_fold-36c09dde5f89d601)\n   Doc-tests pbt_rs"
     },
     "cross_client_conformance": {
       "ok": true,
@@ -56,19 +56,19 @@
       "expected": {
         "pbt-rs-source.tar.gz": "150c4545a07ab3cf4934c7c1e1bb9d04cb38ce5d5e90e37119e26883aa0cddb6",
         "pbt-rs-sha256.txt": "c771a078004e94d5e2b772a9e9614871b39036d2ecdc0176f97d3ef94374c969",
-        "network-readiness-summary.txt": "f4ba848192c215bd785efe501b0357feac73ca016d7d93fcab5c993fd9bbf689",
-        "release-manifest.json": "9ed44a4f61ca243caae67fc3ab6dd2b22bf9572cae65373fddc161c5943ee976",
+        "network-readiness-summary.txt": "0bc241c6021f25407d1fc97d51265b8b310959fae7f6334054cd087501edc63b",
+        "release-manifest.json": "653e63700bd969a3d4d6feb505cd55760c8a170ebbf02bb7039c97f66446f90f",
         "signing-status.txt": "58e72bd196105a2b4828720d784de8081220e8aa1fd93489f48986ff67ca7ef9",
-        "sbom.spdx.json": "815e04d09a790b9c143e68c5212162f1b1aa87212a93ff9484093098f29145da",
+        "sbom.spdx.json": "bb5df16a0f67e3f8b7ae75fab1a98c448a01a603ad57e8f7dff6e61641493c99",
         "provenance.intoto.jsonl": "55464427b88ebf020e2eb191a5453479d4cd777767dde7c3c1df7524bb2b3043"
       },
       "actual": {
         "pbt-rs-source.tar.gz": "150c4545a07ab3cf4934c7c1e1bb9d04cb38ce5d5e90e37119e26883aa0cddb6",
         "pbt-rs-sha256.txt": "c771a078004e94d5e2b772a9e9614871b39036d2ecdc0176f97d3ef94374c969",
-        "network-readiness-summary.txt": "f4ba848192c215bd785efe501b0357feac73ca016d7d93fcab5c993fd9bbf689",
-        "release-manifest.json": "9ed44a4f61ca243caae67fc3ab6dd2b22bf9572cae65373fddc161c5943ee976",
+        "network-readiness-summary.txt": "0bc241c6021f25407d1fc97d51265b8b310959fae7f6334054cd087501edc63b",
+        "release-manifest.json": "653e63700bd969a3d4d6feb505cd55760c8a170ebbf02bb7039c97f66446f90f",
         "signing-status.txt": "58e72bd196105a2b4828720d784de8081220e8aa1fd93489f48986ff67ca7ef9",
-        "sbom.spdx.json": "815e04d09a790b9c143e68c5212162f1b1aa87212a93ff9484093098f29145da",
+        "sbom.spdx.json": "bb5df16a0f67e3f8b7ae75fab1a98c448a01a603ad57e8f7dff6e61641493c99",
         "provenance.intoto.jsonl": "55464427b88ebf020e2eb191a5453479d4cd777767dde7c3c1df7524bb2b3043"
       }
     }

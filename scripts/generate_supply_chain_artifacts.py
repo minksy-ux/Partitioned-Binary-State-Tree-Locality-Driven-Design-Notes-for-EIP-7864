@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -21,7 +22,52 @@ def _run(cmd: list[str]) -> str:
 
 
 def _pip_freeze() -> str:
-    return _run([sys.executable, "-m", "pip", "freeze", "--all"])
+    raw = _run([sys.executable, "-m", "pip", "freeze", "--all"])
+    return _normalize_lock(raw)
+
+
+def _repo_root() -> str:
+    """Return the repository root as a POSIX path string.
+
+    Walks up from the current working directory to find the nearest ``.git``
+    directory.  Falls back to ``Path.cwd()`` when no ``.git`` directory is
+    found (e.g. in a detached or non-git environment).
+    """
+    path = Path.cwd().resolve()
+    for candidate in [path, *path.parents]:
+        if (candidate / ".git").exists():
+            return candidate.as_posix()
+    return path.as_posix()
+
+
+def _normalize_lock(raw: str) -> str:
+    """Normalize absolute local file:// paths to a portable relative reference.
+
+    ``pip freeze`` records locally-installed packages as
+    ``pkg @ file:///abs/path/to/repo`` (non-editable) or
+    ``-e file:///abs/path/to/repo`` (editable install).  The absolute path is
+    environment-specific (e.g. ``/home/runner/work/...`` on GitHub-hosted
+    runners) and makes the committed ``requirements.lock`` non-reproducible
+    across machines.  Normalize those entries to ``pkg @ file:.`` so the
+    lock file is portable.
+    """
+    root = _repo_root()
+    normalized_lines: list[str] = []
+    for line in raw.splitlines():
+        # Match both "pkg @ file:///abs/path" and "-e file:///abs/path" forms.
+        # The optional trailing slash after the path is intentionally dropped —
+        # the replacement normalises to just "." regardless.  The trailing
+        # whitespace group is preserved so line endings are not silently altered.
+        line = re.sub(
+            rf"(?P<prefix>(?:@ |-e )file://){re.escape(root)}/?(?P<ws>\s*)$",
+            r"\g<prefix>.\g<ws>",
+            line,
+        )
+        normalized_lines.append(line)
+    result = "\n".join(normalized_lines)
+    if raw.endswith("\n"):
+        result += "\n"
+    return result
 
 
 def _sha256(path: Path) -> str:
