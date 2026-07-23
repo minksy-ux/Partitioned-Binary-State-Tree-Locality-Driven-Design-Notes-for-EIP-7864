@@ -36,16 +36,16 @@ def _normalize_lock(raw: str) -> str:
     across machines.  Normalize those entries to ``pkg @ file:.`` so the
     lock file is portable.
     """
-    cwd = Path.cwd().resolve().as_posix()
+    repo_root = Path.cwd().resolve().as_posix()
     normalized_lines: list[str] = []
     for line in raw.splitlines():
         # Match both "pkg @ file:///abs/path" and "-e file:///abs/path" forms.
-        # Group 2 (optional trailing slash after the path) is intentionally
-        # dropped — it normalises to just "." regardless.  Group 3 (trailing
-        # whitespace) is preserved so line endings are not silently altered.
+        # The optional trailing slash after the path is intentionally dropped —
+        # the replacement normalises to just "." regardless.  The trailing
+        # whitespace group is preserved so line endings are not silently altered.
         line = re.sub(
-            rf"((?:@ |-e )file://){re.escape(cwd)}(/?)(\s*)$",
-            r"\g<1>.\g<3>",
+            rf"(?P<prefix>(?:@ |-e )file://){re.escape(repo_root)}/?(?P<ws>\s*)$",
+            r"\g<prefix>.\g<ws>",
             line,
         )
         normalized_lines.append(line)
