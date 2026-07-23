@@ -39,10 +39,12 @@ def _normalize_lock(raw: str) -> str:
     cwd = Path.cwd().resolve().as_posix()
     normalized_lines: list[str] = []
     for line in raw.splitlines():
-        # Match both "pkg @ file:///abs/path" and "-e file:///abs/path" forms,
-        # preserving trailing whitespace (group 3).
+        # Match both "pkg @ file:///abs/path" and "-e file:///abs/path" forms.
+        # Group 2 (optional trailing slash after the path) is intentionally
+        # dropped — it normalises to just "." regardless.  Group 3 (trailing
+        # whitespace) is preserved so line endings are not silently altered.
         line = re.sub(
-            r"((?:@ |-e )file://)" + re.escape(cwd) + r"(/?)(\s*)$",
+            rf"((?:@ |-e )file://){re.escape(cwd)}(/?)(\s*)$",
             r"\g<1>.\g<3>",
             line,
         )
