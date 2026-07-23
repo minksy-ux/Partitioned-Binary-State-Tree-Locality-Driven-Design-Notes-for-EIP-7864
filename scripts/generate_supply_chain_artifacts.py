@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -26,17 +27,15 @@ def _pip_freeze() -> str:
 
 
 def _normalize_lock(raw: str) -> str:
-    """Replace absolute local file:// paths with a portable relative reference.
+    """Normalize absolute local file:// paths to a portable relative reference.
 
     ``pip freeze`` records locally-installed packages as
     ``pkg @ file:///abs/path/to/repo``.  The absolute path is
     environment-specific (e.g. ``/home/runner/work/...`` on GitHub-hosted
     runners) and makes the committed ``requirements.lock`` non-reproducible
-    across machines.  Normalise those entries to ``pkg @ file:.`` so the
+    across machines.  Normalize those entries to ``pkg @ file:.`` so the
     lock file is portable.
     """
-    import re
-
     cwd = Path.cwd().resolve().as_posix()
     normalized_lines: list[str] = []
     for line in raw.splitlines():
@@ -47,7 +46,10 @@ def _normalize_lock(raw: str) -> str:
             line,
         )
         normalized_lines.append(line)
-    return "\n".join(normalized_lines) + ("\n" if raw.endswith("\n") else "")
+    result = "\n".join(normalized_lines)
+    if raw.endswith("\n"):
+        result += "\n"
+    return result
 
 
 def _sha256(path: Path) -> str:
