@@ -16,3 +16,7 @@ flate2 = "1"
 
 [dev-dependencies]
 proptest = "1"
+
+[[bench]]
+name = "core_ops"
+harness = false
