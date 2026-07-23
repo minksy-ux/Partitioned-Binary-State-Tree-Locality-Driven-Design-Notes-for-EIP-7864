@@ -27,6 +27,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Guard against tracked Python bytecode artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRACKED_PYC=$(git ls-files | grep -E '(^|/)__pycache__/.*\.pyc$' || true)
+          if [ -n "$TRACKED_PYC" ]; then
+            echo "Tracked Python bytecode artifacts are not allowed:"
+            echo "$TRACKED_PYC"
+            exit 1
+          fi
+          echo "No tracked Python bytecode artifacts found."
+
       - name: Trace upstream workflow run
         shell: bash
         run: |
