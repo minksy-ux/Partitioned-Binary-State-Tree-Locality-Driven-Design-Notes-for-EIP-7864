@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "package_type": "ethereum-foundation-handoff",
-  "generated_at_utc": "2026-07-23T06:33:04.804469Z",
+  "generated_at_utc": "2026-07-23T08:18:53.703422Z",
   "repository": {
     "name": "https://github.com/minksy-ux/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864.git",
-    "branch": "copilot/fix-readiness-job-again",
-    "commit": "ac2ebb80b96f9812696ef109acc954671474aa71"
+    "branch": "copilot/fix-failing-github-actions-job-again",
+    "commit": "13568ca105c0cbec18f6eb2986e54ef52b0fa2b3"
   },
   "readiness": {
     "production_eligible": true,

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at_utc": "2026-07-23T06:32:48.169630Z",
+  "generated_at_utc": "2026-07-23T08:18:54.406077Z",
   "overall_ok": true,
   "baseline": "HEAD~1",
   "checks": {
@@ -13,7 +13,7 @@
         "-q",
         "tests/test_minimal_verifier.py"
       ],
-      "output_excerpt": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864\nconfigfile: pyproject.toml\nplugins: hypothesis-6.160.0\ncollected 6 items\n\ntests/test_minimal_verifier.py ......                                    [100%]\n\n============================== 6 passed in 0.04s ==============================="
+      "output_excerpt": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864\nconfigfile: pyproject.toml\nplugins: hypothesis-6.161.0\ncollected 6 items\n\ntests/test_minimal_verifier.py ......                                    [100%]\n\n============================== 6 passed in 0.04s ==============================="
     },
     "rust_tests": {
       "ok": true,
@@ -54,22 +54,22 @@
     "restored_hashes_match_original": {
       "ok": true,
       "expected": {
-        "pbt-rs-source.tar.gz": "9ca9c5544c173bca4b8af697a696c72481613b807116c39e62fc892433464399",
-        "pbt-rs-sha256.txt": "365dd715e6b54d66c3fef1cd4e157afe000b634fb4e6709cc87ed18339aecd7b",
-        "network-readiness-summary.txt": "ec54f3cd035b1658bcab85f859691cf3bc51e35feca58caaf9e62feae7c299ca",
-        "release-manifest.json": "575d5415b4617048fe81a2d877ee8980722ef1b4e98a568dc459df990e46f3d0",
+        "pbt-rs-source.tar.gz": "db6391d7f81ab0f3a1f673e396686617622d8408ca9006ea487412829d298c49",
+        "pbt-rs-sha256.txt": "739c813b7c2801967b067ea4775e415c45eb3428584ed8c83ad46c6eb9001718",
+        "network-readiness-summary.txt": "82ef54b61b92f26200d9f02e158abafdcfadd23184f6c9432e99da4f536c1a07",
+        "release-manifest.json": "48ad1b7041432beef0f3cc24d8ea4d69c2fbf9f432ed5052834d40f955b76e10",
         "signing-status.txt": "58e72bd196105a2b4828720d784de8081220e8aa1fd93489f48986ff67ca7ef9",
-        "sbom.spdx.json": "714fe5ba94051004e68fa2d82adcb9e4b9331a56534c38a00610226214bb5ab5",
-        "provenance.intoto.jsonl": "7e99843c66d747cf98e176fda2d05bb9ba0c4c6d511af020f0c0d34f3217c148"
+        "sbom.spdx.json": "b73ece70da3b0ae1fb8dbada4d51b2fb464b256a0eb915abc2a41ec8e862cd85",
+        "provenance.intoto.jsonl": "d2a3edc5756dca0a6141e5db65528c779cccc52b0123c1cd3ff2ba2c723b6769"
       },
       "actual": {
-        "pbt-rs-source.tar.gz": "9ca9c5544c173bca4b8af697a696c72481613b807116c39e62fc892433464399",
-        "pbt-rs-sha256.txt": "365dd715e6b54d66c3fef1cd4e157afe000b634fb4e6709cc87ed18339aecd7b",
-        "network-readiness-summary.txt": "ec54f3cd035b1658bcab85f859691cf3bc51e35feca58caaf9e62feae7c299ca",
-        "release-manifest.json": "575d5415b4617048fe81a2d877ee8980722ef1b4e98a568dc459df990e46f3d0",
+        "pbt-rs-source.tar.gz": "db6391d7f81ab0f3a1f673e396686617622d8408ca9006ea487412829d298c49",
+        "pbt-rs-sha256.txt": "739c813b7c2801967b067ea4775e415c45eb3428584ed8c83ad46c6eb9001718",
+        "network-readiness-summary.txt": "82ef54b61b92f26200d9f02e158abafdcfadd23184f6c9432e99da4f536c1a07",
+        "release-manifest.json": "48ad1b7041432beef0f3cc24d8ea4d69c2fbf9f432ed5052834d40f955b76e10",
         "signing-status.txt": "58e72bd196105a2b4828720d784de8081220e8aa1fd93489f48986ff67ca7ef9",
-        "sbom.spdx.json": "714fe5ba94051004e68fa2d82adcb9e4b9331a56534c38a00610226214bb5ab5",
-        "provenance.intoto.jsonl": "7e99843c66d747cf98e176fda2d05bb9ba0c4c6d511af020f0c0d34f3217c148"
+        "sbom.spdx.json": "b73ece70da3b0ae1fb8dbada4d51b2fb464b256a0eb915abc2a41ec8e862cd85",
+        "provenance.intoto.jsonl": "d2a3edc5756dca0a6141e5db65528c779cccc52b0123c1cd3ff2ba2c723b6769"
       }
     }
   }
