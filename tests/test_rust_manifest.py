@@ -6,7 +6,7 @@ import tomllib
 from pathlib import Path
 
 
-def test_rust_bench_targets_reference_existing_files() -> None:
+def test_bench_targets_resolve() -> None:
     manifest_path = Path(__file__).resolve().parents[1] / "pbt-rs" / "Cargo.toml"
     manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
 
