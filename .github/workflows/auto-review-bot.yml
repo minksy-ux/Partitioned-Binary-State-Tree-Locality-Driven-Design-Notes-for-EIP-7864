@@ -1,0 +1,132 @@
+name: Auto Review Bot
+
+'on':
+  workflow_run:
+    workflows:
+      - Auto Review Bot Trigger
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: auto-review-bot-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  auto-review-bot:
+    name: Run
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Guard against tracked Python bytecode artifacts
+        shell: bash
+        run: bash scripts/check_tracked_cache_artifacts.sh
+
+      - name: Trace upstream workflow run
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
+          echo "Upstream workflow: ${{ github.event.workflow_run.name }}"
+          echo "Upstream conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Upstream run id: ${{ github.event.workflow_run.id }}"
+          echo "Upstream run url: $RUN_URL"
+          {
+            echo "### Auto Review Bot Trace"
+            echo "- Upstream workflow: ${{ github.event.workflow_run.name }}"
+            echo "- Upstream conclusion: ${{ github.event.workflow_run.conclusion }}"
+            echo "- Upstream run ID: ${{ github.event.workflow_run.id }}"
+            echo "- Upstream run URL: $RUN_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve PR Number from workflow_run payload
+        id: resolve-pr
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const pr = context.payload?.workflow_run?.pull_requests?.[0]?.number;
+            if (pr) {
+              core.setOutput('pr', String(pr));
+              core.info(`Resolved PR from workflow_run payload: ${pr}`);
+            } else {
+              core.info('workflow_run payload has no linked PR; will try artifact fallback, then API fallback.');
+            }
+
+      - name: Fetch PR Number
+        if: ${{ steps.resolve-pr.outputs.pr == '' }}
+        uses: actions/download-artifact@v6
+        with:
+          name: pr-number
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Read PR Number from artifact
+        if: ${{ steps.resolve-pr.outputs.pr == '' }}
+        id: read-pr-artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=""
+          if [ -f pr-number.txt ]; then
+            FILE="pr-number.txt"
+          elif [ -f pr-number/pr-number.txt ]; then
+            FILE="pr-number/pr-number.txt"
+          else
+            CANDIDATE=$(find . -maxdepth 3 -type f -name 'pr-number.txt' | head -n 1 || true)
+            if [ -n "$CANDIDATE" ]; then
+              FILE="$CANDIDATE"
+            fi
+          fi
+
+          if [ -z "$FILE" ]; then
+            echo "No PR artifact found."
+            exit 0
+          fi
+
+          PR=$(tr -d '[:space:]' < "$FILE")
+          if [ -z "$PR" ]; then
+            echo "Artifact file is empty."
+            exit 0
+          fi
+
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          echo "Resolved PR from artifact: $PR"
+
+      - name: Check review bot config exists
+        id: check-config
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f config/eip-editors.yml ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Missing required config file: config/eip-editors.yml"
+          fi
+
+      - name: Auto Review Bot
+        if: ${{ (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists == 'true' }}
+        id: auto-review-bot
+        uses: ethereum/eip-review-bot@bbc63d4bd02da30703f166f15283ae2eed05916b
+        with:
+          token: ${{ secrets.TOKEN || github.token }}
+          config: config/eip-editors.yml
+          pr_number: ${{ steps.resolve-pr.outputs.pr || steps.read-pr-artifact.outputs.pr }}
+
+      - name: Review bot config missing, skip gracefully
+        if: ${{ (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists != 'true' }}
+        run: echo "PR number resolved but config/eip-editors.yml is missing; skipping review bot without failure."
+
+      - name: No PR context, skip gracefully
+        if: ${{ steps.resolve-pr.outputs.pr == '' && steps.read-pr-artifact.outputs.pr == '' }}
+        run: echo "No PR number could be resolved; skipping without failure."

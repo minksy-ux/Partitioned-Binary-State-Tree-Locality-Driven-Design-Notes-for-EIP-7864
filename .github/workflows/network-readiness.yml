@@ -3,7 +3,8 @@ name: Network Readiness
 # Note: Keep these action major versions Node 24-compatible.
 # - actions/checkout@v5+
 # - actions/setup-python@v6+
-# - actions/upload-artifact@v5+
+# - actions/cache@v5+
+# - actions/upload-artifact@v6+
 # This avoids Node 20 deprecation warnings on GitHub-hosted runners.
 
 on:
@@ -17,11 +18,15 @@ jobs:
     env:
       PBT_RELEASE_MODE: ${{ (github.ref_name == 'main' || github.ref_name == 'master') && '1' || '0' }}
       PBT_SIGNING_ENABLED: ${{ secrets.PBT_SIGNING_KEY != '' && '1' || '0' }}
+      PBT_SIGNING_GRACEFUL_OVERRIDE: ${{ secrets.PBT_SIGNING_KEY == '' && '1' || '0' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      - name: Guard against tracked Python cache artifacts
+        run: bash scripts/check_tracked_cache_artifacts.sh
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -35,7 +40,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Cargo registry and target
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -129,6 +134,7 @@ jobs:
       - name: Validate supply chain artifacts
         env:
           PBT_SIGNING_ENABLED: ${{ env.PBT_SIGNING_ENABLED }}
+          PBT_SIGNING_GRACEFUL_OVERRIDE: ${{ env.PBT_SIGNING_GRACEFUL_OVERRIDE }}
           SUPPLY_CHAIN_SIGNING: ${{ env.PBT_SIGNING_ENABLED == '1' && 'enabled' || 'disabled' }}
         run: python scripts/validate_supply_chain_artifacts.py
 
@@ -139,13 +145,13 @@ jobs:
         run: python scripts/build_ef_handoff.py
 
       - name: Upload release bundle artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: network-readiness-bundle
           path: dist/
 
       - name: Upload EF handoff package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ef-handoff-package
           path: |

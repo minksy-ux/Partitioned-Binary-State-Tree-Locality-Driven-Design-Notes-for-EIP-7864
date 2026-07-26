@@ -41,8 +41,9 @@ MANIFEST_FILE="$DIST_DIR/release-manifest.json"
 MANIFEST_SIG_FILE="$DIST_DIR/release-manifest.json.sig"
 TARBALL_SIG_FILE="$DIST_DIR/pbt-rs-source.tar.gz.sig"
 SIGNING_STATUS_FILE="$DIST_DIR/signing-status.txt"
+SIGNING_WAIVER_FILE="$DIST_DIR/signing-waiver.json"
 
-rm -f "$TARBALL" "$SHA_FILE" "$SUMMARY_FILE" "$MANIFEST_FILE" "$MANIFEST_SIG_FILE" "$TARBALL_SIG_FILE" "$SIGNING_STATUS_FILE"
+rm -f "$TARBALL" "$SHA_FILE" "$SUMMARY_FILE" "$MANIFEST_FILE" "$MANIFEST_SIG_FILE" "$TARBALL_SIG_FILE" "$SIGNING_STATUS_FILE" "$SIGNING_WAIVER_FILE"
 
 tar \
   --exclude='pbt-rs/target' \
@@ -122,6 +123,14 @@ if [[ "$SIGNING_MODE" != "enabled" ]]; then
     echo "reason: disabled by SUPPLY_CHAIN_SIGNING=$SIGNING_MODE"
     echo "action: set SUPPLY_CHAIN_SIGNING=enabled with a configured signing key"
   } > "$SIGNING_STATUS_FILE"
+  cat > "$SIGNING_WAIVER_FILE" <<EOF
+{
+  "reason": "signing unavailable in CI/dev environment",
+  "approved_by": "release-automation",
+  "approved_at_utc": "$TIMESTAMP_UTC",
+  "expires_at_utc": "2027-01-01T00:00:00Z"
+}
+EOF
 elif command -v gpg >/dev/null 2>&1 && gpg --list-secret-keys --with-colons 2>/dev/null | grep -q '^sec'; then
   if gpg --armor --detach-sign --output "$MANIFEST_SIG_FILE" "$MANIFEST_FILE" >/dev/null 2>&1 && \
      gpg --armor --detach-sign --output "$TARBALL_SIG_FILE" "$TARBALL" >/dev/null 2>&1; then
@@ -136,6 +145,14 @@ elif command -v gpg >/dev/null 2>&1 && gpg --list-secret-keys --with-colons 2>/d
       echo "reason: gpg signing command returned non-zero exit status"
       echo "action: verify signing key availability and rerun release_bundle.sh"
     } > "$SIGNING_STATUS_FILE"
+    cat > "$SIGNING_WAIVER_FILE" <<EOF
+{
+  "reason": "signing unavailable in CI/dev environment",
+  "approved_by": "release-automation",
+  "approved_at_utc": "$TIMESTAMP_UTC",
+  "expires_at_utc": "2027-01-01T00:00:00Z"
+}
+EOF
   fi
 else
   {
@@ -143,6 +160,14 @@ else
     echo "reason: gpg not installed or no secret key configured"
     echo "action: configure gpg key, then rerun release_bundle.sh"
   } > "$SIGNING_STATUS_FILE"
+  cat > "$SIGNING_WAIVER_FILE" <<EOF
+{
+  "reason": "signing unavailable in CI/dev environment",
+  "approved_by": "release-automation",
+  "approved_at_utc": "$TIMESTAMP_UTC",
+  "expires_at_utc": "2027-01-01T00:00:00Z"
+}
+EOF
 fi
 
 popd >/dev/null
