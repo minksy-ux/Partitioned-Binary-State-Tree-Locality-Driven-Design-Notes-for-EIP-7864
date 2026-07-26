@@ -36,6 +36,19 @@ If you want to explore the implementation locally:
 
 If you are reviewing release readiness, start with [IMPLEMENTATION.md](IMPLEMENTATION.md), [RELEASE_NOTES.md](RELEASE_NOTES.md), and the handoff material in [docs/evidence/](docs/evidence/).
 
+### Repository Hygiene
+
+Generated artifacts are never allowed as tracked files in this repository, including Python cache/bytecode files and Rust build output under `pbt-rs/target/`.
+
+- CI enforces this via `scripts/check_tracked_cache_artifacts.sh`.
+- Install local hooks once per clone to catch this before commit:
+
+```bash
+bash scripts/install_git_hooks.sh
+```
+
+After installation, the versioned pre-commit hook in `.githooks/pre-commit` runs the same cache-artifact check locally.
+
 ---
 
 ## Verification Thesis

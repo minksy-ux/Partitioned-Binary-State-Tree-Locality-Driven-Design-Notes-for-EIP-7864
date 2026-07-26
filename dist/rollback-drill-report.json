@@ -1,19 +1,19 @@
 {
   "schema_version": "1.0.0",
-  "generated_at_utc": "2026-07-23T08:18:14.419466Z",
+  "generated_at_utc": "2026-07-23T08:31:30.756626Z",
   "overall_ok": true,
   "baseline": "HEAD~1",
   "checks": {
     "python_tests": {
       "ok": true,
       "command": [
-        "/usr/bin/python",
+        "/usr/bin/python3",
         "-m",
         "pytest",
         "-q",
         "tests/test_minimal_verifier.py"
       ],
-      "output_excerpt": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864\nconfigfile: pyproject.toml\nplugins: hypothesis-6.161.0\ncollected 6 items\n\ntests/test_minimal_verifier.py ......                                    [100%]\n\n============================== 6 passed in 0.09s ==============================="
+      "output_excerpt": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864\nconfigfile: pyproject.toml\nplugins: hypothesis-6.161.0\ncollected 6 items\n\ntests/test_minimal_verifier.py ......                                    [100%]\n\n============================== 6 passed in 0.05s ==============================="
     },
     "rust_tests": {
       "ok": true,
@@ -25,12 +25,12 @@
         "--",
         "--nocapture"
       ],
-      "output_excerpt": "   Compiling rand v0.9.4\n   Compiling rand_xorshift v0.4.0\n   Compiling unarray v0.1.4\n   Compiling regex-syntax v0.8.11\n   Compiling proptest v1.11.0\n   Compiling pbt-rs v0.1.0 (/home/runner/work/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/Partitioned-Binary-State-Tree-Locality-Driven-Design-Notes-for-EIP-7864/pbt-rs)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 26.92s\n     Running unittests src/lib.rs (pbt-rs/target/debug/deps/pbt_rs-8ba639e6ae785896)\n     Running unittests src/bin/conformance_case.rs (pbt-rs/target/debug/deps/conformance_case-ec405a4016813c01)\n     Running tests/core_roundtrip.rs (pbt-rs/target/debug/deps/core_roundtrip-f43c2b330c1df540)\n     Running tests/ethereum_keys.rs (pbt-rs/target/debug/deps/ethereum_keys-8e65deb7708aa2b3)\n     Running tests/hash_mode.rs (pbt-rs/target/debug/deps/hash_mode-873612fcf087ad7e)\n     Running tests/locality_vectors.rs (pbt-rs/target/debug/deps/locality_vectors-8689252ab53a2ad1)\n     Running tests/migration.rs (pbt-rs/target/debug/deps/migration-f2107576a6481273)\n     Running tests/proof_format.rs (pbt-rs/target/debug/deps/proof_format-04552fe57a3f1ad6)\n     Running tests/property.rs (pbt-rs/target/debug/deps/property-d5fa8e5dea4971f9)\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\n     Running tests/vector_fold.rs (pbt-rs/target/debug/deps/vector_fold-36c09dde5f89d601)\n   Doc-tests pbt_rs"
+      "output_excerpt": "\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s\n     Running unittests src/lib.rs (pbt-rs/target/debug/deps/pbt_rs-8ba639e6ae785896)\n     Running unittests src/bin/conformance_case.rs (pbt-rs/target/debug/deps/conformance_case-ec405a4016813c01)\n     Running tests/core_roundtrip.rs (pbt-rs/target/debug/deps/core_roundtrip-f43c2b330c1df540)\n     Running tests/ethereum_keys.rs (pbt-rs/target/debug/deps/ethereum_keys-8e65deb7708aa2b3)\n     Running tests/hash_mode.rs (pbt-rs/target/debug/deps/hash_mode-873612fcf087ad7e)\n     Running tests/locality_vectors.rs (pbt-rs/target/debug/deps/locality_vectors-8689252ab53a2ad1)\n     Running tests/migration.rs (pbt-rs/target/debug/deps/migration-f2107576a6481273)\n     Running tests/proof_format.rs (pbt-rs/target/debug/deps/proof_format-04552fe57a3f1ad6)\n     Running tests/property.rs (pbt-rs/target/debug/deps/property-d5fa8e5dea4971f9)\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\nproptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs\n     Running tests/vector_fold.rs (pbt-rs/target/debug/deps/vector_fold-36c09dde5f89d601)\n   Doc-tests pbt_rs"
     },
     "cross_client_conformance": {
       "ok": true,
       "command": [
-        "/usr/bin/python",
+        "/usr/bin/python3",
         "scripts/run_cross_client_conformance.py"
       ],
       "output_excerpt": "cross-client-conformance: PASS\ncross-client-conformance: report=dist/cross-client-conformance-report.json"
@@ -38,7 +38,7 @@
     "rollback_swap_verify": {
       "ok": true,
       "command": [
-        "/usr/bin/python",
+        "/usr/bin/python3",
         "scripts/verify_release_artifacts.py"
       ],
       "output_excerpt": "release-artifacts: PASS"
@@ -46,7 +46,7 @@
     "restore_verify": {
       "ok": true,
       "command": [
-        "/usr/bin/python",
+        "/usr/bin/python3",
         "scripts/verify_release_artifacts.py"
       ],
       "output_excerpt": "release-artifacts: PASS"

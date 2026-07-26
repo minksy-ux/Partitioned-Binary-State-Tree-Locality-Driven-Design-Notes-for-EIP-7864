@@ -26,6 +26,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Guard against tracked Python cache artifacts
+        run: bash scripts/check_tracked_cache_artifacts.sh
+
       - name: Resolve PR number
         id: resolve-pr
         shell: bash
