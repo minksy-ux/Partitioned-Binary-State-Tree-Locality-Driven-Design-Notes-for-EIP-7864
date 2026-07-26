@@ -25,6 +25,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Guard against tracked Python cache artifacts
+        run: bash scripts/check_tracked_cache_artifacts.sh
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
