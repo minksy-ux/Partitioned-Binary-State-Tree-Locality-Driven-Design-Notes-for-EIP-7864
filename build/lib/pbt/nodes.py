@@ -10,12 +10,14 @@ Three types exist and no others:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from .constants import STEM_SUBTREE_WIDTH, EMPTY_VALUE
+from .constants import EMPTY_VALUE, STEM_SUBTREE_WIDTH
 
 if TYPE_CHECKING:
     pass
+
+STEM_HASH_DOMAIN = b"PBT:STEM:v1"
 
 # Sentinel bytes used as the hash of an EmptyNode.
 # Defined as tree_hash(b"") but imported lazily to avoid circular imports.
@@ -110,7 +112,7 @@ class StemNode(Node):
     def node_hash(self) -> bytes:
         if self._hash_cache is None:
             from .hash import tree_hash
-            payload = self.stem_prefix + b"".join(self.values)
+            payload = STEM_HASH_DOMAIN + self.stem_prefix + b"".join(self.values)
             self._hash_cache = tree_hash(payload)
         return self._hash_cache
 

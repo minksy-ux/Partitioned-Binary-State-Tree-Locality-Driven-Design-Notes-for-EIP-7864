@@ -24,7 +24,6 @@ from .constants import (
 from .hash import tree_hash
 from .tree import MerkleProof, split_key, verify_proof
 
-
 WIRE_VERSION_V1 = 1
 MAX_PACKET_WIRE_BYTES = 262144
 MAX_PROOF_BLOB_BYTES = 131072
@@ -532,7 +531,11 @@ def simulate_epoch_fetch_with_fallback(
         available_provider_ids=available_provider_ids,
     )
     last_result = LocalVerificationResult(False, "no attempts executed")
-    tracker = reliability_tracker if reliability_tracker is not None else ProviderReliabilityTracker()
+    tracker = (
+        reliability_tracker
+        if reliability_tracker is not None
+        else ProviderReliabilityTracker()
+    )
 
     for attempt in range(1, max_attempts + 1):
         last_plan = policy.plan_fetch(
@@ -566,7 +569,11 @@ def simulate_epoch_fetch_with_fallback(
                 tracker.record_result(provider_id, accepted=False, reason="stale response")
                 continue
             if not verify_witness_packet(packet):
-                tracker.record_result(provider_id, accepted=False, reason="proof verification failed")
+                tracker.record_result(
+                    provider_id,
+                    accepted=False,
+                    reason="proof verification failed",
+                )
                 continue
             tracker.record_result(provider_id, accepted=True, reason="ok")
 

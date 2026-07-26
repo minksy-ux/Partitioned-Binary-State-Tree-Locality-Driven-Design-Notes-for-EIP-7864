@@ -50,6 +50,10 @@ def test_validate_supply_chain_allows_waiver_before_release_mode_signing_failure
 ) -> None:
     _write_required_artifacts(tmp_path)
     dist = tmp_path / "dist"
+    # Override signing-status.txt to "signing: enabled" so the waiver validation
+    # code path is actually exercised (the validator only checks the waiver when
+    # signing is enabled in the status file).
+    (dist / "signing-status.txt").write_text("signing: enabled\n", encoding="utf-8")
     (dist / "signing-waiver.json").write_text(
         json.dumps(
             {
@@ -64,7 +68,6 @@ def test_validate_supply_chain_allows_waiver_before_release_mode_signing_failure
 
     env = {
         "PBT_RELEASE_MODE": "1",
-        "PBT_SIGNING_ENABLED": "1",
     }
 
     proc = subprocess.run(
@@ -80,14 +83,15 @@ def test_validate_supply_chain_allows_waiver_before_release_mode_signing_failure
     assert "supply-chain: PASS" in proc.stdout
 
 
-def test_validate_supply_chain_fails_in_release_mode_when_waiver_missing(
+def test_validate_supply_chain_rejects_unsigned_release_without_explicit_override(
     tmp_path: Path,
 ) -> None:
+    # signing-status.txt says "signing: unavailable" (from _write_required_artifacts).
+    # With strict policy defaults, this must fail unless the override is set.
     _write_required_artifacts(tmp_path)
 
     env = {
         "PBT_RELEASE_MODE": "1",
-        "PBT_SIGNING_ENABLED": "1",
     }
 
     proc = subprocess.run(
@@ -100,30 +104,30 @@ def test_validate_supply_chain_fails_in_release_mode_when_waiver_missing(
     )
 
     assert proc.returncode == 1
-    assert "release mode requires signing: enabled when PBT_SIGNING_ENABLED=1" in proc.stdout
+    assert "strict signing is required by default" in proc.stdout
 
 
-def test_validate_supply_chain_allows_waiver_in_release_mode_when_signing_not_requested(
+def test_validate_supply_chain_allows_unsigned_release_with_explicit_override_and_waiver(
     tmp_path: Path,
 ) -> None:
     _write_required_artifacts(tmp_path)
-    dist = tmp_path / "dist"
-    (dist / "signing-waiver.json").write_text(
+
+    (tmp_path / "dist" / "signing-waiver.json").write_text(
         json.dumps(
             {
-                "reason": "CI runner has no key material",
+                "reason": "signing unavailable in ephemeral CI",
                 "approved_by": "release-engineering",
-                "approved_at_utc": "2026-07-04T00:00:00Z",
+                "approved_at_utc": "2026-07-06T00:00:00Z",
                 "expires_at_utc": "2026-12-31T00:00:00Z",
             }
         ),
         encoding="utf-8",
     )
 
+    # Mirror explicit graceful override mode.
     env = {
         "PBT_RELEASE_MODE": "1",
-        "PBT_SIGNING_ENABLED": "0",
-        "SUPPLY_CHAIN_SIGNING": "disabled",
+        "PBT_SIGNING_GRACEFUL_OVERRIDE": "1",
     }
 
     proc = subprocess.run(
@@ -137,3 +141,26 @@ def test_validate_supply_chain_allows_waiver_in_release_mode_when_signing_not_re
 
     assert proc.returncode == 0
     assert "supply-chain: PASS" in proc.stdout
+
+
+def test_validate_supply_chain_override_requires_waiver(
+    tmp_path: Path,
+) -> None:
+    _write_required_artifacts(tmp_path)
+
+    env = {
+        "PBT_RELEASE_MODE": "1",
+        "PBT_SIGNING_GRACEFUL_OVERRIDE": "1",
+    }
+
+    proc = subprocess.run(
+        [sys.executable, str(_script_path())],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 1
+    assert "missing signing waiver artifact" in proc.stdout

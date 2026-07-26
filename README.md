@@ -1,9 +1,6 @@
 # EIP-7864: Partitioned Binary State Tree
-
 ## Network Handoff
-
 For Ethereum Foundation and client-team evaluation artifacts, release-bundle steps, and readiness boundaries, see [EF_NETWORK_HANDOFF.md](EF_NETWORK_HANDOFF.md).
-
 | Field | Value |
 |---|---|
 | EIP | 7864 |
@@ -38,6 +35,19 @@ If you want to explore the implementation locally:
 3. Try the demo with `python demo.py` or the interactive CLI with `python cli.py`.
 
 If you are reviewing release readiness, start with [IMPLEMENTATION.md](IMPLEMENTATION.md), [RELEASE_NOTES.md](RELEASE_NOTES.md), and the handoff material in [docs/evidence/](docs/evidence/).
+
+### Repository Hygiene
+
+Generated artifacts are never allowed as tracked files in this repository, including Python cache/bytecode files and Rust build output under `pbt-rs/target/`.
+
+- CI enforces this via `scripts/check_tracked_cache_artifacts.sh`.
+- Install local hooks once per clone to catch this before commit:
+
+```bash
+bash scripts/install_git_hooks.sh
+```
+
+After installation, the versioned pre-commit hook in `.githooks/pre-commit` runs the same cache-artifact check locally.
 
 ---
 
