@@ -51,5 +51,5 @@ cargo test
 ## Run benchmark skeleton
 
 ```bash
-cargo bench --bench core_ops
+cargo run --release --bench core_ops
 ```
