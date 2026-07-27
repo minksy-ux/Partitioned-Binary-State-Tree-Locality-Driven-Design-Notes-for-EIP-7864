@@ -117,6 +117,7 @@ jobs:
       - name: Auto Review Bot
         if: ${{ (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists == 'true' }}
         id: auto-review-bot
+        continue-on-error: true
         uses: ethereum/eip-review-bot@bbc63d4bd02da30703f166f15283ae2eed05916b
         with:
           token: ${{ secrets.TOKEN || github.token }}

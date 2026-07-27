@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 _WORKFLOW = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "auto-review-bot.yml"
 
 
@@ -46,3 +48,14 @@ def test_graceful_skip_when_no_pr_context() -> None:
     """A graceful non-failing skip path must exist when no PR is resolved."""
     text = _workflow_text()
     assert "No PR context, skip gracefully" in text
+
+
+def test_review_bot_step_is_non_blocking() -> None:
+    """The Auto Review Bot step must not fail the job when the bot returns an error."""
+    data = yaml.safe_load(_workflow_text())
+    steps = data["jobs"]["auto-review-bot"]["steps"]
+    bot_step = next((s for s in steps if s.get("name") == "Auto Review Bot"), None)
+    assert bot_step is not None, "Auto Review Bot step must exist"
+    assert bot_step.get("continue-on-error") is True, (
+        "Auto Review Bot step must have continue-on-error: true"
+    )
