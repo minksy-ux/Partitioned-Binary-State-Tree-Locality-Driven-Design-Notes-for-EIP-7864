@@ -35,6 +35,15 @@ def test_review_bot_gated_on_config_existence() -> None:
     assert "steps.check-config.outputs.exists == 'true'" in text
 
 
+def test_review_bot_gated_on_target_repository() -> None:
+    """The Auto Review Bot step must only run for the ethereum/EIPs repository."""
+    text = _workflow_text()
+    assert "Check target repository" in text
+    assert "check-target-repo" in text
+    assert '"ethereum/EIPs"' in text
+    assert "steps.check-target-repo.outputs.eligible == 'true'" in text
+
+
 def test_graceful_skip_when_config_missing() -> None:
     """A graceful non-failing skip path must exist when config is absent."""
     text = _workflow_text()
@@ -46,3 +55,10 @@ def test_graceful_skip_when_no_pr_context() -> None:
     """A graceful non-failing skip path must exist when no PR is resolved."""
     text = _workflow_text()
     assert "No PR context, skip gracefully" in text
+
+
+def test_graceful_skip_when_repo_not_supported() -> None:
+    """A graceful non-failing skip path must exist for non-EIPs repositories."""
+    text = _workflow_text()
+    assert "Unsupported repository, skip gracefully" in text
+    assert "steps.check-target-repo.outputs.eligible != 'true'" in text
