@@ -10,3 +10,6 @@ __pycache__/
 
 # Rust build output
 pbt-rs/target/
+
+# Rollback drill working directory (ephemeral CI artifact)
+dist/rollback-drill/

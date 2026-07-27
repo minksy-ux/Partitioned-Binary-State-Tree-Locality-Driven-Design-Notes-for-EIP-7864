@@ -1,3 +1,0 @@
-signing: unavailable
-reason: disabled by SUPPLY_CHAIN_SIGNING=disabled
-action: set SUPPLY_CHAIN_SIGNING=enabled with a configured signing key
