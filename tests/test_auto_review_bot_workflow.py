@@ -88,7 +88,8 @@ def test_outcome_summary_step_present() -> None:
     )
     # The step must only run when the bot actually ran (not when it was skipped)
     condition = report_step.get("if", "")
-    assert "steps.auto-review-bot.outcome != 'skipped'" in condition, (
-        "Outcome summary step must be conditioned on the bot having run (outcome != 'skipped'); "
+    assert condition == "steps.auto-review-bot.outcome != 'skipped'", (
+        "Outcome summary step must have exactly "
+        "if: steps.auto-review-bot.outcome != 'skipped'; "
         f"got: {condition!r}"
     )
