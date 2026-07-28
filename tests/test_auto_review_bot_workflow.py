@@ -13,6 +13,8 @@ from pathlib import Path
 import yaml
 
 _WORKFLOW = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "auto-review-bot.yml"
+# Pattern matching a fully-pinned action ref: owner/repo@<40 lowercase hex chars>
+_SHA_PIN_PATTERN = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 
 
 def _workflow_text() -> str:
@@ -69,20 +71,24 @@ def test_review_bot_action_sha_is_pinned() -> None:
     bot_step = next((s for s in steps if s.get("name") == "Auto Review Bot"), None)
     assert bot_step is not None, "Auto Review Bot step must exist"
     uses = bot_step.get("uses", "")
-    # A pinned SHA looks like: owner/repo@<40-hex-chars>
-    sha_pattern = re.compile(r"^[^@]+@[0-9a-f]{40}$")
-    assert sha_pattern.match(uses), (
+    assert _SHA_PIN_PATTERN.match(uses), (
         f"Auto Review Bot action must be pinned to a full commit SHA (40 hex chars), got: {uses!r}"
     )
 
 
 def test_outcome_summary_step_present() -> None:
     """A 'Report Auto Review Bot outcome' step must surface the bot result for observability."""
-    text = _workflow_text()
-    assert "Report Auto Review Bot outcome" in text, (
+    data = yaml.safe_load(_workflow_text())
+    steps = data["jobs"]["auto-review-bot"]["steps"]
+    report_step = next(
+        (s for s in steps if s.get("name") == "Report Auto Review Bot outcome"), None
+    )
+    assert report_step is not None, (
         "Workflow must contain a 'Report Auto Review Bot outcome' step"
     )
     # The step must only run when the bot actually ran (not when it was skipped)
-    assert "steps.auto-review-bot.outcome != 'skipped'" in text, (
-        "Outcome summary step must be conditioned on the bot having run (outcome != 'skipped')"
+    condition = report_step.get("if", "")
+    assert "steps.auto-review-bot.outcome != 'skipped'" in condition, (
+        "Outcome summary step must be conditioned on the bot having run (outcome != 'skipped'); "
+        f"got: {condition!r}"
     )
