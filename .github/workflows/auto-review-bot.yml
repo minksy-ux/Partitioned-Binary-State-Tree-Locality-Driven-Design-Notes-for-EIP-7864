@@ -21,7 +21,7 @@ jobs:
   auto-review-bot:
     name: Run
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.repository == 'ethereum/EIPs' }}
 
     steps:
       - name: Checkout repository
@@ -114,30 +114,15 @@ jobs:
             echo "Missing required config file: config/eip-editors.yml"
           fi
 
-      - name: Check target repository
-        id: check-target-repo
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ github.repository }}" = "ethereum/EIPs" ]; then
-            echo "eligible=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "Repository ${{ github.repository }} is not ethereum/EIPs; skipping review bot."
-          fi
-
       - name: Auto Review Bot
-        if: ${{ (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists == 'true' && steps.check-target-repo.outputs.eligible == 'true' }}
+        if: ${{ github.repository == 'ethereum/EIPs' && (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists == 'true' }}
         id: auto-review-bot
+        continue-on-error: true
         uses: ethereum/eip-review-bot@ce664cd9250a11ecf9420b8a29cafafa9ca7ce75
         with:
           token: ${{ secrets.TOKEN || github.token }}
           config: config/eip-editors.yml
           pr_number: ${{ steps.resolve-pr.outputs.pr || steps.read-pr-artifact.outputs.pr }}
-
-      - name: Unsupported repository, skip gracefully
-        if: ${{ (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-target-repo.outputs.eligible != 'true' }}
-        run: echo "Review bot supports ethereum/EIPs only; skipping without failure."
 
       - name: Review bot config missing, skip gracefully
         if: ${{ (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists != 'true' }}
@@ -146,3 +131,20 @@ jobs:
       - name: No PR context, skip gracefully
         if: ${{ steps.resolve-pr.outputs.pr == '' && steps.read-pr-artifact.outputs.pr == '' }}
         run: echo "No PR number could be resolved; skipping without failure."
+
+  skip-non-target-repo:
+    name: Skip outside ethereum/EIPs
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.repository != 'ethereum/EIPs' }}
+
+    steps:
+      - name: Report skip for non-target repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Skipping auto review bot in non-target repository: ${{ github.repository }}"
+          {
+            echo "### Auto Review Bot Skipped"
+            echo "- repository: ${{ github.repository }}"
+            echo "- reason: workflow is restricted to ethereum/EIPs"
+          } >> "$GITHUB_STEP_SUMMARY"
