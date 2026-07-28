@@ -12,6 +12,7 @@ Requires-Dist: pytest>=8.0; extra == "dev"
 Requires-Dist: hypothesis>=6.100; extra == "dev"
 Requires-Dist: ruff>=0.6.0; extra == "dev"
 Requires-Dist: mypy>=1.11.0; extra == "dev"
+Requires-Dist: pyyaml>=6.0; extra == "dev"
 
 # EIP-7864: Partitioned Binary State Tree
 ## Network Handoff
