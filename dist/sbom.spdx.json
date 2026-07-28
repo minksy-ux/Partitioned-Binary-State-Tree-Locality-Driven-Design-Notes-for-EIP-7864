@@ -3,7 +3,7 @@
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "pbt-eip7864",
   "creationInfo": {
-    "created": "2026-07-23T06:32:56.595039Z",
+    "created": "2026-07-27T11:11:44.586093Z",
     "creators": [
       "Tool: scripts/generate_supply_chain_artifacts.py"
     ]
@@ -13,11 +13,6 @@
       "SPDXID": "SPDXRef-Package-argcomplete",
       "name": "argcomplete",
       "versionInfo": "3.7.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-ast_serialize",
-      "name": "ast_serialize",
-      "versionInfo": "0.6.0"
     },
     {
       "SPDXID": "SPDXRef-Package-attrs",
@@ -43,11 +38,6 @@
       "SPDXID": "SPDXRef-Package-bcrypt",
       "name": "bcrypt",
       "versionInfo": "3.2.2"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-blake3",
-      "name": "blake3",
-      "versionInfo": "1.0.9"
     },
     {
       "SPDXID": "SPDXRef-Package-blinker",
@@ -135,11 +125,6 @@
       "versionInfo": "21.0.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-hypothesis",
-      "name": "hypothesis",
-      "versionInfo": "6.160.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-idna",
       "name": "idna",
       "versionInfo": "3.6"
@@ -148,11 +133,6 @@
       "SPDXID": "SPDXRef-Package-incremental",
       "name": "incremental",
       "versionInfo": "22.10.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-iniconfig",
-      "name": "iniconfig",
-      "versionInfo": "2.3.0"
     },
     {
       "SPDXID": "SPDXRef-Package-Jinja2",
@@ -195,11 +175,6 @@
       "versionInfo": "1.0.6"
     },
     {
-      "SPDXID": "SPDXRef-Package-librt",
-      "name": "librt",
-      "versionInfo": "0.13.0"
-    },
-    {
       "SPDXID": "SPDXRef-Package-markdown-it-py",
       "name": "markdown-it-py",
       "versionInfo": "3.0.0"
@@ -218,16 +193,6 @@
       "SPDXID": "SPDXRef-Package-mercurial",
       "name": "mercurial",
       "versionInfo": "6.7.2"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-mypy",
-      "name": "mypy",
-      "versionInfo": "2.3.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-mypy_extensions",
-      "name": "mypy_extensions",
-      "versionInfo": "1.1.0"
     },
     {
       "SPDXID": "SPDXRef-Package-netaddr",
@@ -255,11 +220,6 @@
       "versionInfo": "1.7.4"
     },
     {
-      "SPDXID": "SPDXRef-Package-pathspec",
-      "name": "pathspec",
-      "versionInfo": "1.1.1"
-    },
-    {
       "SPDXID": "SPDXRef-Package-pexpect",
       "name": "pexpect",
       "versionInfo": "4.9.0"
@@ -278,11 +238,6 @@
       "SPDXID": "SPDXRef-Package-platformdirs",
       "name": "platformdirs",
       "versionInfo": "4.10.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-pluggy",
-      "name": "pluggy",
-      "versionInfo": "1.6.0"
     },
     {
       "SPDXID": "SPDXRef-Package-ptyprocess",
@@ -345,11 +300,6 @@
       "versionInfo": "3.5"
     },
     {
-      "SPDXID": "SPDXRef-Package-pytest",
-      "name": "pytest",
-      "versionInfo": "9.1.1"
-    },
-    {
       "SPDXID": "SPDXRef-Package-python-apt",
       "name": "python-apt",
       "versionInfo": "2.7.7+ubuntu5.2"
@@ -390,11 +340,6 @@
       "versionInfo": "13.7.1"
     },
     {
-      "SPDXID": "SPDXRef-Package-ruff",
-      "name": "ruff",
-      "versionInfo": "0.15.22"
-    },
-    {
       "SPDXID": "SPDXRef-Package-s3transfer",
       "name": "s3transfer",
       "versionInfo": "0.10.1"
@@ -413,11 +358,6 @@
       "SPDXID": "SPDXRef-Package-six",
       "name": "six",
       "versionInfo": "1.16.0"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-sortedcontainers",
-      "name": "sortedcontainers",
-      "versionInfo": "2.4.0"
     },
     {
       "SPDXID": "SPDXRef-Package-sos",
