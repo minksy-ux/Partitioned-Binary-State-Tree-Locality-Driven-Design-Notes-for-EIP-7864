@@ -115,7 +115,7 @@ jobs:
           fi
 
       - name: Auto Review Bot
-        if: ${{ github.repository == 'ethereum/EIPs' && (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists == 'true' }}
+        if: ${{ (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists == 'true' }}
         id: auto-review-bot
         continue-on-error: true
         uses: ethereum/eip-review-bot@ce664cd9250a11ecf9420b8a29cafafa9ca7ce75

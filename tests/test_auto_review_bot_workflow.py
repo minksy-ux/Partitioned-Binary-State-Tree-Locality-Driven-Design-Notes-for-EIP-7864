@@ -38,9 +38,9 @@ def test_review_bot_gated_on_config_existence() -> None:
 
 
 def test_review_bot_gated_on_target_repository() -> None:
-    """The Auto Review Bot step must only run for the ethereum/EIPs repository."""
+    """The workflow must be restricted to the ethereum/EIPs repository."""
     text = _workflow_text()
-    assert "github.repository == 'ethereum/EIPs'" in text
+    assert "github.event.workflow_run.conclusion == 'success' && github.repository == 'ethereum/EIPs'" in text
 
 
 def test_graceful_skip_when_config_missing() -> None:
@@ -65,12 +65,6 @@ def test_review_bot_step_is_non_blocking() -> None:
     assert bot_step.get("continue-on-error") is True, (
         "Auto Review Bot step must have continue-on-error: true"
     )
-
-
-def test_review_bot_step_is_guarded_to_ethereum_eips_repo() -> None:
-    """The bot should run only in ethereum/EIPs to avoid external fork failures."""
-    text = _workflow_text()
-    assert "github.repository == 'ethereum/EIPs'" in text
 
 
 def test_review_bot_job_is_guarded_to_ethereum_eips_repo() -> None:
