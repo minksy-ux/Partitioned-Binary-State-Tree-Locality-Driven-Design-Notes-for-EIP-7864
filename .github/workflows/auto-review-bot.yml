@@ -124,6 +124,21 @@ jobs:
           config: config/eip-editors.yml
           pr_number: ${{ steps.resolve-pr.outputs.pr || steps.read-pr-artifact.outputs.pr }}
 
+      - name: Report Auto Review Bot outcome
+        if: steps.auto-review-bot.outcome != 'skipped'
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUTCOME="${{ steps.auto-review-bot.outcome }}"
+          echo "Auto Review Bot outcome: $OUTCOME"
+          {
+            echo "### Auto Review Bot Outcome"
+            echo "- outcome: \`$OUTCOME\`"
+            if [ "$OUTCOME" != "success" ]; then
+              echo "- Note: bot exited non-zero; \`continue-on-error: true\` prevented job failure."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Review bot config missing, skip gracefully
         if: ${{ (steps.resolve-pr.outputs.pr != '' || steps.read-pr-artifact.outputs.pr != '') && steps.check-config.outputs.exists != 'true' }}
         run: echo "PR number resolved but config/eip-editors.yml is missing; skipping review bot without failure."

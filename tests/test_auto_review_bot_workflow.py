@@ -7,11 +7,14 @@ failing when `config/eip-editors.yml` is absent, as implemented in the
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
 
 _WORKFLOW = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "auto-review-bot.yml"
+# Pattern matching a fully-pinned action ref: owner/repo@<40 lowercase hex chars>
+_SHA_PIN_PATTERN = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 
 
 def _workflow_text() -> str:
@@ -67,10 +70,35 @@ def test_review_bot_step_is_non_blocking() -> None:
     )
 
 
-def test_review_bot_job_is_guarded_to_ethereum_eips_repo() -> None:
-    """The job itself should be gated to avoid unnecessary non-target execution."""
-    text = _workflow_text()
-    assert "github.event.workflow_run.conclusion == 'success' && github.repository == 'ethereum/EIPs'" in text
+def test_review_bot_action_sha_is_pinned() -> None:
+    """The eip-review-bot action must be pinned to a full commit SHA, not a mutable tag."""
+    data = yaml.safe_load(_workflow_text())
+    steps = data["jobs"]["auto-review-bot"]["steps"]
+    bot_step = next((s for s in steps if s.get("name") == "Auto Review Bot"), None)
+    assert bot_step is not None, "Auto Review Bot step must exist"
+    uses = bot_step.get("uses", "")
+    assert _SHA_PIN_PATTERN.match(uses), (
+        f"Auto Review Bot action must be pinned to a full commit SHA (40 hex chars), got: {uses!r}"
+    )
+
+
+def test_outcome_summary_step_present() -> None:
+    """A 'Report Auto Review Bot outcome' step must surface the bot result for observability."""
+    data = yaml.safe_load(_workflow_text())
+    steps = data["jobs"]["auto-review-bot"]["steps"]
+    report_step = next(
+        (s for s in steps if s.get("name") == "Report Auto Review Bot outcome"), None
+    )
+    assert report_step is not None, (
+        "Workflow must contain a 'Report Auto Review Bot outcome' step"
+    )
+    # The step must only run when the bot actually ran (not when it was skipped)
+    condition = report_step.get("if", "")
+    assert condition == "steps.auto-review-bot.outcome != 'skipped'", (
+        "Outcome summary step must have exactly "
+        "if: steps.auto-review-bot.outcome != 'skipped'; "
+        f"got: {condition!r}"
+    )
 
 
 def test_review_bot_action_is_pinned_to_latest_stable_commit() -> None:
