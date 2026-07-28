@@ -21,7 +21,7 @@ jobs:
   auto-review-bot:
     name: Run
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.repository == 'ethereum/EIPs' }}
 
     steps:
       - name: Checkout repository
@@ -146,3 +146,20 @@ jobs:
       - name: No PR context, skip gracefully
         if: ${{ steps.resolve-pr.outputs.pr == '' && steps.read-pr-artifact.outputs.pr == '' }}
         run: echo "No PR number could be resolved; skipping without failure."
+
+  skip-non-target-repo:
+    name: Skip outside ethereum/EIPs
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.repository != 'ethereum/EIPs' }}
+
+    steps:
+      - name: Report skip for non-target repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Skipping auto review bot in non-target repository: ${{ github.repository }}"
+          {
+            echo "### Auto Review Bot Skipped"
+            echo "- repository: ${{ github.repository }}"
+            echo "- reason: workflow is restricted to ethereum/EIPs"
+          } >> "$GITHUB_STEP_SUMMARY"

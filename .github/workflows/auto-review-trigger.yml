@@ -24,6 +24,7 @@ concurrency:
 jobs:
   publish-pr-number:
     runs-on: ubuntu-latest
+    if: ${{ github.repository == 'ethereum/EIPs' }}
 
     steps:
       - name: Checkout repository
@@ -64,3 +65,20 @@ jobs:
           path: pr-number.txt
           if-no-files-found: error
           retention-days: 7
+
+  skip-non-target-repo:
+    name: Skip outside ethereum/EIPs
+    runs-on: ubuntu-latest
+    if: ${{ github.repository != 'ethereum/EIPs' }}
+
+    steps:
+      - name: Report skip for non-target repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Skipping auto-review trigger in non-target repository: ${{ github.repository }}"
+          {
+            echo "### Auto Review Trigger Skipped"
+            echo "- repository: ${{ github.repository }}"
+            echo "- reason: workflow is restricted to ethereum/EIPs"
+          } >> "$GITHUB_STEP_SUMMARY"

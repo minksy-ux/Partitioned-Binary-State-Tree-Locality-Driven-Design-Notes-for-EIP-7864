@@ -15,10 +15,20 @@ import yaml
 _WORKFLOW = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "auto-review-bot.yml"
 # Pattern matching a fully-pinned action ref: owner/repo@<40 lowercase hex chars>
 _SHA_PIN_PATTERN = re.compile(r"^[^@]+@[0-9a-f]{40}$")
+_EXPECTED_REVIEW_BOT_PIN = "ethereum/eip-review-bot@ce664cda01ccfd10ef7d9dfcfc0ea79e689ac304"
 
 
 def _workflow_text() -> str:
     return _WORKFLOW.read_text(encoding="utf-8")
+
+
+def _auto_review_bot_steps() -> list[dict]:
+    data = yaml.safe_load(_workflow_text())
+    return data["jobs"]["auto-review-bot"]["steps"]
+
+
+def _step_by_name(steps: list[dict], name: str) -> dict | None:
+    return next((s for s in steps if s.get("name") == name), None)
 
 
 def test_workflow_file_exists() -> None:
@@ -40,6 +50,12 @@ def test_review_bot_gated_on_config_existence() -> None:
     assert "steps.check-config.outputs.exists == 'true'" in text
 
 
+def test_review_bot_gated_on_target_repository() -> None:
+    """The workflow must be restricted to the ethereum/EIPs repository."""
+    text = _workflow_text()
+    assert "github.event.workflow_run.conclusion == 'success' && github.repository == 'ethereum/EIPs'" in text
+
+
 def test_graceful_skip_when_config_missing() -> None:
     """A graceful non-failing skip path must exist when config is absent."""
     text = _workflow_text()
@@ -55,9 +71,8 @@ def test_graceful_skip_when_no_pr_context() -> None:
 
 def test_review_bot_step_is_non_blocking() -> None:
     """The Auto Review Bot step must not fail the job when the bot returns an error."""
-    data = yaml.safe_load(_workflow_text())
-    steps = data["jobs"]["auto-review-bot"]["steps"]
-    bot_step = next((s for s in steps if s.get("name") == "Auto Review Bot"), None)
+    steps = _auto_review_bot_steps()
+    bot_step = _step_by_name(steps, "Auto Review Bot")
     assert bot_step is not None, "Auto Review Bot step must exist"
     assert bot_step.get("continue-on-error") is True, (
         "Auto Review Bot step must have continue-on-error: true"
@@ -66,9 +81,8 @@ def test_review_bot_step_is_non_blocking() -> None:
 
 def test_review_bot_action_sha_is_pinned() -> None:
     """The eip-review-bot action must be pinned to a full commit SHA, not a mutable tag."""
-    data = yaml.safe_load(_workflow_text())
-    steps = data["jobs"]["auto-review-bot"]["steps"]
-    bot_step = next((s for s in steps if s.get("name") == "Auto Review Bot"), None)
+    steps = _auto_review_bot_steps()
+    bot_step = _step_by_name(steps, "Auto Review Bot")
     assert bot_step is not None, "Auto Review Bot step must exist"
     uses = bot_step.get("uses", "")
     assert _SHA_PIN_PATTERN.match(uses), (
@@ -78,11 +92,8 @@ def test_review_bot_action_sha_is_pinned() -> None:
 
 def test_outcome_summary_step_present() -> None:
     """A 'Report Auto Review Bot outcome' step must surface the bot result for observability."""
-    data = yaml.safe_load(_workflow_text())
-    steps = data["jobs"]["auto-review-bot"]["steps"]
-    report_step = next(
-        (s for s in steps if s.get("name") == "Report Auto Review Bot outcome"), None
-    )
+    steps = _auto_review_bot_steps()
+    report_step = _step_by_name(steps, "Report Auto Review Bot outcome")
     assert report_step is not None, (
         "Workflow must contain a 'Report Auto Review Bot outcome' step"
     )
@@ -92,4 +103,27 @@ def test_outcome_summary_step_present() -> None:
         "Outcome summary step must have exactly "
         "if: steps.auto-review-bot.outcome != 'skipped'; "
         f"got: {condition!r}"
+    )
+
+
+def test_review_bot_action_is_pinned_to_latest_stable_commit() -> None:
+    """The action pin must match the reviewed stable upstream commit."""
+    steps = _auto_review_bot_steps()
+    bot_step = _step_by_name(steps, "Auto Review Bot")
+    assert bot_step is not None, "Auto Review Bot step must exist"
+    assert bot_step.get("uses") == _EXPECTED_REVIEW_BOT_PIN, (
+        "Auto Review Bot action pin must match reviewed stable commit; "
+        f"expected {_EXPECTED_REVIEW_BOT_PIN!r}, got {bot_step.get('uses')!r}"
+    )
+
+
+def test_non_target_repo_skip_job_exists() -> None:
+    """A dedicated job should report skip details for non-target repositories."""
+    data = yaml.safe_load(_workflow_text())
+    job = data["jobs"].get("skip-non-target-repo")
+    assert job is not None, "skip-non-target-repo job must exist"
+    assert job.get("name") == "Skip outside ethereum/EIPs"
+    assert (
+        job.get("if")
+        == "${{ github.event.workflow_run.conclusion == 'success' && github.repository != 'ethereum/EIPs' }}"
     )
