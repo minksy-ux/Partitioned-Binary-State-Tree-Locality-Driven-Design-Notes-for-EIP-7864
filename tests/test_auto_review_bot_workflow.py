@@ -59,3 +59,31 @@ def test_review_bot_step_is_non_blocking() -> None:
     assert bot_step.get("continue-on-error") is True, (
         "Auto Review Bot step must have continue-on-error: true"
     )
+
+
+def test_review_bot_action_sha_is_pinned() -> None:
+    """The eip-review-bot action must be pinned to a full commit SHA, not a mutable tag."""
+    import re
+
+    data = yaml.safe_load(_workflow_text())
+    steps = data["jobs"]["auto-review-bot"]["steps"]
+    bot_step = next((s for s in steps if s.get("name") == "Auto Review Bot"), None)
+    assert bot_step is not None, "Auto Review Bot step must exist"
+    uses = bot_step.get("uses", "")
+    # A pinned SHA looks like: owner/repo@<40-hex-chars>
+    sha_pattern = re.compile(r"^[^@]+@[0-9a-f]{40}$")
+    assert sha_pattern.match(uses), (
+        f"Auto Review Bot action must be pinned to a full commit SHA (40 hex chars), got: {uses!r}"
+    )
+
+
+def test_outcome_summary_step_present() -> None:
+    """A 'Report Auto Review Bot outcome' step must surface the bot result for observability."""
+    text = _workflow_text()
+    assert "Report Auto Review Bot outcome" in text, (
+        "Workflow must contain a 'Report Auto Review Bot outcome' step"
+    )
+    # The step must only run when the bot actually ran (not when it was skipped)
+    assert "steps.auto-review-bot.outcome != 'skipped'" in text, (
+        "Outcome summary step must be conditioned on the bot having run (outcome != 'skipped')"
+    )
