@@ -12,6 +12,10 @@ on:
     branches: [main, master]
   pull_request:
 
+concurrency:
+  group: network-readiness-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   readiness:
     runs-on: ubuntu-latest
