@@ -7,6 +7,7 @@ failing when `config/eip-editors.yml` is absent, as implemented in the
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
@@ -63,8 +64,6 @@ def test_review_bot_step_is_non_blocking() -> None:
 
 def test_review_bot_action_sha_is_pinned() -> None:
     """The eip-review-bot action must be pinned to a full commit SHA, not a mutable tag."""
-    import re
-
     data = yaml.safe_load(_workflow_text())
     steps = data["jobs"]["auto-review-bot"]["steps"]
     bot_step = next((s for s in steps if s.get("name") == "Auto Review Bot"), None)
