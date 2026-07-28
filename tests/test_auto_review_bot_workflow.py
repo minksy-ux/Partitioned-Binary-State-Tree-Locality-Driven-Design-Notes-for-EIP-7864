@@ -105,7 +105,7 @@ def test_review_bot_action_is_pinned_to_latest_stable_commit() -> None:
     """The action pin must match the reviewed stable upstream commit."""
     text = _workflow_text()
     assert (
-        "uses: ethereum/eip-review-bot@ce664cd9250a11ecf9420b8a29cafafa9ca7ce75"
+        "uses: ethereum/eip-review-bot@ce664cda01ccfd10ef7d9dfcfc0ea79e689ac304"
         in text
     )
 
