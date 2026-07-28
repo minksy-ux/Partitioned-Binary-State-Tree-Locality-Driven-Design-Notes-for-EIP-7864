@@ -125,7 +125,7 @@ jobs:
           pr_number: ${{ steps.resolve-pr.outputs.pr || steps.read-pr-artifact.outputs.pr }}
 
       - name: Report Auto Review Bot outcome
-        if: ${{ steps.auto-review-bot.outcome != '' }}
+        if: ${{ steps.auto-review-bot.outcome != 'skipped' }}
         shell: bash
         run: |
           set -euo pipefail
